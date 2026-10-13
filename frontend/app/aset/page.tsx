@@ -1,311 +1,151 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-
 import AppLayout from "@/components/layout/AppLayout";
 import { dummyAssets } from "@/data/dummy-assets";
+import { deleteAsset, loadAssets } from "@/lib/asset-storage";
+import { getAssetStatus } from "@/lib/asset-utils";
+import { Asset } from "@/types/asset";
 
 export default function AsetPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("Semua Status");
+  const [assets, setAssets] = useState<Asset[]>(dummyAssets);
 
-  const filteredAssets = dummyAssets.filter((asset) => {
-    const keyword = search.toLowerCase();
+  useEffect(() => {
+    const refresh = () => setAssets(loadAssets());
+    refresh();
+    window.addEventListener("assets-updated", refresh);
+    return () => window.removeEventListener("assets-updated", refresh);
+  }, []);
 
-    const matchesSearch =
-      asset.nama_barang_aset.toLowerCase().includes(keyword) ||
-      String(asset.no).includes(keyword) ||
-      String(asset.no_register).includes(keyword) ||
-      asset.dinas_opd.toLowerCase().includes(keyword) ||
-      asset.alamat.toLowerCase().includes(keyword);
+  const filteredAssets = useMemo(() => assets.filter((asset) => {
+    const keyword = search.trim().toLowerCase();
+    const searchable = [
+      asset.nama_barang_aset,
+      asset.no,
+      asset.no_register,
+      asset.dinas_opd,
+      asset.lokasi_aset,
+      asset.alamat,
+    ].join(" ").toLowerCase();
+    return searchable.includes(keyword) &&
+      (status === "Semua Status" || getAssetStatus(asset) === status);
+  }), [assets, search, status]);
 
-    const assetStatus =
-      asset.no_sertifikat !== "-" && asset.no_sertifikat !== ""
-        ? "Bersertifikat"
-        : "Belum Bersertifikat";
+  const certified = assets.filter((asset) => getAssetStatus(asset) === "Bersertifikat").length;
+  const totalArea = assets.reduce((total, asset) => total + (asset.luas_m2 ?? 0), 0);
 
-    const matchesStatus =
-      status === "Semua Status" || assetStatus === status;
+  function resetFilters() {
+    setSearch("");
+    setStatus("Semua Status");
+  }
 
-    return matchesSearch && matchesStatus;
-  });
+  function handleDelete(asset: Asset) {
+    const confirmed = window.confirm(
+      `Hapus aset "${asset.nama_barang_aset}" dari katalog?`,
+    );
+    if (!confirmed) return;
+
+    deleteAsset(asset.id);
+    setAssets(loadAssets());
+  }
 
   return (
     <AppLayout>
       <div className="space-y-6">
-
-        {/* Header */}
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              Data Aset Tanah
-            </h1>
-
-            <p className="mt-1 text-sm text-slate-500">
-              Data inventaris aset tanah Pemerintah Kota Lhokseumawe.
-            </p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Katalog inventaris</p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-900">Data Aset Tanah</h1>
+            <p className="mt-1 text-sm text-slate-500">Kelola dan pantau seluruh aset tanah pemerintah daerah.</p>
           </div>
-
-          <Link
-            href="/aset/tambah"
-            className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-700"
-          >
+          <Link href="/aset/tambah" className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
             + Tambah Aset
           </Link>
         </div>
 
-        {/* Filter */}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-3 md:flex-row">
-
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari No, nama aset, register, OPD, atau alamat..."
-              className="h-11 flex-1 rounded-lg border border-slate-300 px-4 text-sm outline-none focus:border-blue-500"
-            />
-
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="h-11 rounded-lg border border-slate-300 bg-white px-4 text-sm outline-none focus:border-blue-500"
-            >
-              <option value="Semua Status">
-                Semua Status
-              </option>
-
-              <option value="Bersertifikat">
-                Bersertifikat
-              </option>
-
-              <option value="Belum Bersertifikat">
-                Belum Bersertifikat
-              </option>
-            </select>
-          </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total aset</p><p className="mt-1 text-2xl font-bold text-slate-900">{assets.length}</p><p className="text-xs text-slate-500">bidang terdaftar</p></div>
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Bersertifikat</p><p className="mt-1 text-2xl font-bold text-emerald-600">{certified}</p><p className="text-xs text-slate-500">dokumen lengkap</p></div>
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total luas</p><p className="mt-1 text-2xl font-bold text-blue-600">{totalArea.toLocaleString("id-ID")} m²</p><p className="text-xs text-slate-500">akumulasi luas tanah</p></div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 p-5">
+            <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div><h2 className="font-semibold text-slate-900">Daftar inventaris</h2><p className="text-sm text-slate-500">Gunakan pencarian untuk menemukan aset dengan cepat.</p></div>
+              <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">{filteredAssets.length} data ditemukan</span>
+            </div>
+            <div className="flex flex-col gap-3 md:flex-row">
+              <div className="relative flex-1">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">⌕</span>
+                <input type="text" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari nama, nomor, OPD, lokasi, atau alamat..." className="h-11 w-full rounded-lg border border-slate-300 pl-9 pr-4 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+              </div>
+              <select value={status} onChange={(event) => setStatus(event.target.value)} className="h-11 rounded-lg border border-slate-300 bg-white px-4 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+                <option>Semua Status</option><option>Bersertifikat</option><option>Belum Bersertifikat</option><option>Dalam Proses</option>
+              </select>
+              {(search || status !== "Semua Status") && <button type="button" onClick={resetFilters} className="h-11 rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-600 hover:bg-slate-50">Reset</button>}
+            </div>
+          </div>
 
           <div className="overflow-x-auto">
-
-            <table className="w-full min-w-[1500px] text-sm">
-
-              <thead className="bg-slate-50">
-
-                <tr className="border-b border-slate-200 text-left">
-
-                  <th className="px-4 py-4 font-semibold">
-                    No
-                  </th>
-
-                  <th className="px-4 py-4 font-semibold">
-                    No. Register
-                  </th>
-
-                  <th className="px-4 py-4 font-semibold">
-                    Nama Barang/Aset
-                  </th>
-
-                  <th className="px-4 py-4 font-semibold">
-                    Dinas / OPD
-                  </th>
-
-                  <th className="px-4 py-4 font-semibold">
-                    Lokasi Aset
-                  </th>
-
-                  <th className="px-4 py-4 font-semibold">
-                    Alamat
-                  </th>
-
-                  <th className="px-4 py-4 font-semibold">
-                    Luas (m²)
-                  </th>
-
-                  <th className="px-4 py-4 font-semibold">
-                    Tanggal Perolehan
-                  </th>
-
-                  <th className="px-4 py-4 font-semibold">
-                    Hak
-                  </th>
-
-                  <th className="px-4 py-4 font-semibold">
-                    Sertifikat
-                  </th>
-
-                  <th className="px-4 py-4 font-semibold">
-                    Penggunaan
-                  </th>
-
-                  <th className="px-4 py-4 font-semibold">
-                    Asal Usul
-                  </th>
-
-                  <th className="px-4 py-4 font-semibold">
-                    Nilai Perolehan
-                  </th>
-
-                  <th className="px-4 py-4 font-semibold">
-                    Keterangan
-                  </th>
-
-                  <th className="px-4 py-4 text-center font-semibold">
-                    Aksi
-                  </th>
-
+            <table className="w-full min-w-[1050px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-slate-200">
+                  <th className="w-16 px-5 py-4 font-semibold">No</th>
+                  <th className="px-5 py-4 font-semibold">Aset</th>
+                  <th className="px-5 py-4 font-semibold">Lokasi</th>
+                  <th className="px-5 py-4 font-semibold">OPD</th>
+                  <th className="px-5 py-4 text-right font-semibold">Luas</th>
+                  <th className="px-5 py-4 font-semibold">Sertifikat</th>
+                  <th className="px-5 py-4 font-semibold">Nilai perolehan</th>
+                  <th className="px-5 py-4 text-center font-semibold">Aksi</th>
                 </tr>
-
               </thead>
-
-              <tbody>
-
+              <tbody className="divide-y divide-slate-100">
                 {filteredAssets.map((asset) => {
-
-                  const bersertifikat =
-                    asset.no_sertifikat !== "-" &&
-                    asset.no_sertifikat !== "";
-
+                  const assetStatus = getAssetStatus(asset);
+                  const certifiedAsset = assetStatus === "Bersertifikat";
                   return (
-                    <tr
-                      key={asset.id}
-                      className="border-b border-slate-100 hover:bg-slate-50"
-                    >
-
-                      <td className="px-4 py-4">
-                        {asset.no}
+                    <tr key={asset.id} className="transition hover:bg-blue-50/40">
+                      <td className="px-5 py-4 align-top font-medium text-slate-500">{asset.no}</td>
+                      <td className="max-w-[280px] px-5 py-4 align-top">
+                        <p className="font-semibold text-slate-900">{asset.nama_barang_aset}</p>
+                        <p className="mt-1 text-xs text-slate-500">Register: {asset.no_register}</p>
+                        <p className="mt-1 line-clamp-1 text-xs text-slate-500">{asset.penggunaan}</p>
                       </td>
-
-                      <td className="px-4 py-4">
-                        {asset.no_register}
+                      <td className="max-w-[220px] px-5 py-4 align-top">
+                        <p className="font-medium text-slate-700">{asset.lokasi_aset.replace(/^Kecamatan\s+/i, "")}</p>
+                        <p className="mt-1 text-xs text-slate-500">{asset.alamat}</p>
                       </td>
-
-                      <td className="px-4 py-4 font-medium text-slate-900">
-                        {asset.nama_barang_aset}
+                      <td className="max-w-[170px] px-5 py-4 align-top text-slate-600">{asset.dinas_opd}</td>
+                      <td className="px-5 py-4 text-right align-top font-medium text-slate-700">{asset.luas_m2 !== null ? `${asset.luas_m2.toLocaleString("id-ID")} m²` : "-"}</td>
+                      <td className="px-5 py-4 align-top">
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${certifiedAsset ? "bg-emerald-50 text-emerald-700" : "bg-orange-50 text-orange-700"}`}>{assetStatus}</span>
+                        <p className="mt-2 text-xs text-slate-500">{asset.no_sertifikat === "-" ? "Dokumen belum tersedia" : asset.no_sertifikat}</p>
                       </td>
-
-                      <td className="px-4 py-4">
-                        {asset.dinas_opd}
-                      </td>
-
-                      <td className="px-4 py-4">
-                        {asset.lokasi_aset}
-                      </td>
-
-                      <td className="px-4 py-4">
-                        {asset.alamat}
-                      </td>
-
-                      <td className="px-4 py-4">
-                        {asset.luas_m2 !== null
-                          ? asset.luas_m2.toLocaleString("id-ID")
-                          : "-"}
-                      </td>
-
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        {asset.tanggal_perolehan}
-                      </td>
-
-                      <td className="px-4 py-4">
-                        {asset.hak}
-                      </td>
-
-                      <td className="px-4 py-4">
-
-                        <div className="space-y-1">
-                          <div>
-                            Tgl: {asset.tanggal_sertifikat}
-                          </div>
-
-                          <div>
-                            No: {asset.no_sertifikat}
-                          </div>
+                      <td className="whitespace-nowrap px-5 py-4 align-top text-slate-700">{asset.nilai_perolehan !== null ? `Rp ${asset.nilai_perolehan.toLocaleString("id-ID")}` : "-"}</td>
+                      <td className="px-5 py-4 align-top">
+                        <div className="flex justify-center gap-2">
+                          <Link href={`/aset/${asset.id}`} className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700">Detail</Link>
+                          <Link href={`/aset/${asset.id}/edit`} className="rounded-md border border-blue-200 px-3 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50">Edit</Link>
+                          <button type="button" onClick={() => handleDelete(asset)} className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">Hapus</button>
                         </div>
-
                       </td>
-
-                      <td className="px-4 py-4">
-                        {asset.penggunaan}
-                      </td>
-
-                      <td className="px-4 py-4">
-                        {asset.asal_usul}
-                      </td>
-
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        {asset.nilai_perolehan !== null
-                          ? `Rp ${asset.nilai_perolehan.toLocaleString(
-                              "id-ID"
-                            )}`
-                          : "-"}
-                      </td>
-
-                      <td className="px-4 py-4">
-                        <span
-                          className={
-                            bersertifikat
-                              ? "rounded-full bg-green-100 px-3 py-1 text-xs text-green-700"
-                              : "rounded-full bg-orange-100 px-3 py-1 text-xs text-orange-700"
-                          }
-                        >
-                          {asset.keterangan}
-                        </span>
-                      </td>
-
-                      <td className="px-4 py-4">
-
-                        <div className="flex gap-2">
-
-                          <Link
-                            href={`/aset/${asset.id}`}
-                            className="rounded-md border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-50"
-                          >
-                            Detail
-                          </Link>
-
-                          <Link
-                            href={`/aset/${asset.id}/edit`}
-                            className="rounded-md border border-blue-200 px-3 py-1.5 text-xs text-blue-600 hover:bg-blue-50"
-                          >
-                            Edit
-                          </Link>
-
-                        </div>
-
-                      </td>
-
                     </tr>
                   );
                 })}
-
-                {filteredAssets.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={15}
-                      className="px-5 py-12 text-center text-slate-500"
-                    >
-                      Data aset tidak ditemukan.
-                    </td>
-                  </tr>
-                )}
-
+                {filteredAssets.length === 0 && <tr><td colSpan={8} className="px-5 py-14 text-center"><p className="font-medium text-slate-700">Data aset tidak ditemukan</p><p className="mt-1 text-sm text-slate-500">Coba ubah kata kunci atau filter yang digunakan.</p><button type="button" onClick={resetFilters} className="mt-4 text-sm font-medium text-blue-600 hover:text-blue-700">Hapus semua filter</button></td></tr>}
               </tbody>
-
             </table>
-
           </div>
-
-          <div className="border-t border-slate-200 px-5 py-4 text-sm text-slate-500">
-            Menampilkan {filteredAssets.length} dari{" "}
-            {dummyAssets.length} data aset
+          <div className="flex flex-col gap-1 border-t border-slate-200 px-5 py-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+            <span>Menampilkan <strong className="text-slate-700">{filteredAssets.length}</strong> dari <strong className="text-slate-700">{assets.length}</strong> aset</span>
+            <span>Geser tabel ke samping untuk melihat kolom lainnya</span>
           </div>
-
-        </div>
-
+        </section>
       </div>
     </AppLayout>
   );

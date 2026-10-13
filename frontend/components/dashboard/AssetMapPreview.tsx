@@ -1,4 +1,7 @@
-export default function AssetMapPreview() {
+import AssetMap from "@/components/map/AssetMap";
+import { Asset } from "@/types/asset";
+
+export default function AssetMapPreview({ assets }: { assets: Asset[] }) {
   return (
     <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-200 p-5">
@@ -20,21 +23,7 @@ export default function AssetMapPreview() {
         </a>
       </div>
 
-      <div className="relative h-[350px] bg-slate-100">
-        <div className="flex h-full items-center justify-center">
-          <div className="text-center">
-            <div className="text-4xl text-slate-400">⌖</div>
-
-            <p className="mt-2 font-medium text-slate-600">
-              Peta Aset Tanah
-            </p>
-
-            <p className="text-sm text-slate-400">
-              Peta interaktif akan ditampilkan di sini.
-            </p>
-          </div>
-        </div>
-      </div>
+      <AssetMap heightClassName="h-[350px]" assets={assets} />
     </section>
   );
 }

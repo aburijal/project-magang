@@ -14,8 +14,8 @@ export default function AppLayout({
 
       <Topbar />
 
-      <main className="ml-64 min-h-screen pt-20">
-        <div className="p-8">
+      <main className="min-h-screen pt-20 lg:ml-64">
+        <div className="p-4 sm:p-6 lg:p-8">
           {children}
         </div>
       </main>
