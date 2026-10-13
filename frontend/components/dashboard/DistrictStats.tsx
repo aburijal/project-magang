@@ -1,27 +1,9 @@
-const districts = [
-  {
-    name: "Banda Sakti",
-    area: "125.450 m²",
-    percentage: 78,
-  },
-  {
-    name: "Muara Dua",
-    area: "98.250 m²",
-    percentage: 61,
-  },
-  {
-    name: "Muara Satu",
-    area: "87.350 m²",
-    percentage: 54,
-  },
-  {
-    name: "Blang Mangat",
-    area: "76.300 m²",
-    percentage: 47,
-  },
-];
+import { formatArea, getDistrictSummary } from "@/lib/asset-utils";
+import { Asset } from "@/types/asset";
 
-export default function DistrictStats() {
+export default function DistrictStats({ assets }: { assets: Asset[] }) {
+  const districts = getDistrictSummary(assets);
+
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-6">
@@ -43,7 +25,7 @@ export default function DistrictStats() {
               </span>
 
               <span className="text-slate-500">
-                {district.area}
+                {formatArea(district.area)}
               </span>
             </div>
 

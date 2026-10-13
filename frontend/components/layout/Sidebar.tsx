@@ -40,20 +40,22 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-slate-900 text-white">
+    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-slate-900 text-white max-lg:hidden">
       {/* Logo */}
       <div className="flex h-20 items-center border-b border-slate-700 px-5">
-        <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-white text-xl font-bold text-slate-900">
-          P
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-xl font-extrabold text-white shadow-lg shadow-blue-950/30">
+          K
         </div>
 
         <div className="ml-3">
-          <h1 className="text-sm font-bold">
-            Katalog Aset Tanah
+          <h1 className="text-xs font-bold leading-4">
+            SISTEM DIGITAL KATALOG
+            <br />
+            INVENTARIS ASET TANAH
           </h1>
 
           <p className="text-xs text-slate-400">
-            Pemerintah Kota Lhokseumawe
+            Pemko Lhokseumawe
           </p>
         </div>
       </div>
@@ -89,12 +91,10 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div className="border-t border-slate-700 p-4">
-        <p className="text-xs text-slate-500">
-          Sistem Inventaris Aset Tanah
-        </p>
-
-        <p className="mt-1 text-xs text-slate-600">
-          © 2026
+        <p className="text-[11px] leading-4 text-slate-500">
+          Pemerintah Kota Lhokseumawe
+          <br />
+          Dinas Pertanahan · 2026
         </p>
       </div>
     </aside>
