@@ -1,3 +1,4 @@
+
 <?php
 
 use Illuminate\Database\Migrations\Migration;
@@ -6,24 +7,19 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
-{
-    Schema::create('locations', function (Blueprint $table) {
-        $table->id();
-        $table->string('kecamatan');
-        $table->string('gampong');
-        $table->text('alamat')->nullable();
-        $table->timestamps();
-    });
-    
+    {
+        Schema::create('locations', function (Blueprint $table) {
+            $table->id();
+            $table->string('kecamatan', 100);
+            $table->string('gampong', 150)->nullable();
+            $table->text('alamat')->nullable();
+            $table->timestamps();
+
+            $table->index(['kecamatan', 'gampong']);
+        });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('locations');
