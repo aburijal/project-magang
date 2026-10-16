@@ -2,20 +2,27 @@
 
 import { useState } from "react";
 
-export default function Topbar() {
+interface TopbarProps {
+  onMenuClick: () => void;
+}
+
+export default function Topbar({ onMenuClick }: TopbarProps) {
   const [showNotifications, setShowNotifications] = useState(false);
   return (
-    <header className="fixed left-0 right-0 top-0 z-30 h-20 border-b border-slate-200 bg-white lg:left-64">
-      <div className="flex h-full items-center justify-between px-4 sm:px-8">
-        <div className="flex items-center gap-3">
+    <header className="fixed left-0 right-0 top-0 z-30 h-16 border-b border-slate-200 bg-white sm:h-20 lg:left-64">
+      <div className="flex h-full items-center justify-between gap-3 px-3 sm:px-8">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <button type="button" onClick={onMenuClick} aria-label="Buka menu navigasi" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg text-slate-700 hover:bg-slate-100 lg:hidden">
+            ☰
+          </button>
           <div className="hidden h-9 w-1 rounded-full bg-blue-600 sm:block" />
-          <h1 className="text-sm font-bold tracking-wide text-slate-800 sm:text-base">
+          <h1 className="truncate text-xs font-bold tracking-wide text-slate-800 sm:text-base">
             SISTEM DIGITAL KATALOG INVENTARIS ASET TANAH
           </h1>
         </div>
 
         {/* Bagian kanan */}
-        <div className="flex items-center gap-5">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-5">
           {/* Notification */}
           <div className="relative">
             <button
@@ -23,7 +30,7 @@ export default function Topbar() {
               aria-label="Buka notifikasi"
               aria-expanded={showNotifications}
               onClick={() => setShowNotifications((visible) => !visible)}
-              className="relative flex h-10 w-10 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"
+              className="relative flex h-9 w-9 items-center justify-center rounded-full text-sm text-slate-600 hover:bg-slate-100"
             >
               <span className="text-base">🔔</span>
               <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
@@ -43,12 +50,12 @@ export default function Topbar() {
           </div>
 
           {/* User */}
-          <div className="flex items-center gap-3 border-l border-slate-200 pl-5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 font-bold text-white">
+          <div className="flex items-center gap-2 border-l border-slate-200 pl-2 sm:gap-3 sm:pl-5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white sm:h-10 sm:w-10">
               A
             </div>
 
-            <div>
+            <div className="hidden sm:block">
               <p className="text-sm font-semibold text-slate-800">
                 Admin
               </p>

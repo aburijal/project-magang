@@ -9,12 +9,56 @@ interface AssetMapProps {
   heightClassName?: string;
   assets?: Asset[];
   resetSignal?: number;
+  targetAssetId?: number | null;
+}
+
+function escapeHtml(value: string | number): string {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function assetValue(value: string | number | null): string {
+  return value === null || value === "" ? "-" : escapeHtml(value);
+}
+
+function createAssetPopup(asset: Asset, status: string): string {
+  const area = asset.luas_m2 === null
+    ? "-"
+    : `${asset.luas_m2.toLocaleString("id-ID")} m²`;
+  const coordinates = asset.koordinat_x === null || asset.koordinat_y === null
+    ? "-"
+    : `${asset.koordinat_x.toFixed(6)}, ${asset.koordinat_y.toFixed(6)}`;
+
+  return `
+    <div class="asset-popup">
+      <div class="asset-popup__heading">
+        <div>
+          <strong class="asset-popup__title">${assetValue(asset.nama_barang_aset)}</strong>
+          <span class="asset-popup__code">No. Register ${assetValue(asset.no_register)}</span>
+        </div>
+      </div>
+      <dl class="asset-popup__details">
+        <div><dt>Lokasi</dt><dd>${assetValue(asset.lokasi_aset)}</dd></div>
+        <div><dt>Jenis aset</dt><dd>${assetValue(asset.nama_barang_aset)}</dd></div>
+        <div><dt>Luas</dt><dd>${assetValue(area)}</dd></div>
+        <div><dt>Status</dt><dd>${assetValue(status)}</dd></div>
+        <div><dt>Status hak</dt><dd>${assetValue(asset.hak)}</dd></div>
+        <div><dt>Koordinat</dt><dd>${assetValue(coordinates)}</dd></div>
+      </dl>
+      <a class="asset-popup__link" href="/aset/${asset.id}">Lihat detail aset <span aria-hidden="true">→</span></a>
+    </div>
+  `;
 }
 
 export default function AssetMap({
   heightClassName = "h-[600px]",
   assets = dummyAssets,
   resetSignal = 0,
+  targetAssetId = null,
 }: AssetMapProps) {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<import("leaflet").Map | null>(null);
@@ -78,17 +122,26 @@ export default function AssetMap({
         if (asset.koordinat_x === null || asset.koordinat_y === null) continue;
 
         const status = getAssetStatus(asset);
-        L.circleMarker([asset.koordinat_x, asset.koordinat_y], {
+        const marker = L.circleMarker([asset.koordinat_x, asset.koordinat_y], {
           radius: 8,
           color: status === "Bersertifikat" ? "#059669" : "#ea580c",
           fillColor: status === "Bersertifikat" ? "#10b981" : "#f97316",
           fillOpacity: 0.85,
           weight: 2,
         })
-          .bindPopup(
-            `<strong>${asset.nama_barang_aset}</strong><br />${asset.alamat}<br />Status: ${status}`,
-          )
+          .bindPopup(createAssetPopup(asset, status), {
+            className: "asset-map-popup",
+            maxWidth: 360,
+            minWidth: 280,
+          })
           .addTo(map);
+
+          if (asset.id === targetAssetId) {
+            map.setView([asset.koordinat_x, asset.koordinat_y], 16, {
+              animate: false,
+            });
+            marker.openPopup();
+          }
       }
 
       // Kontrol layer
@@ -217,7 +270,7 @@ export default function AssetMap({
       mapContainer?.removeEventListener("pointerleave", clearPress);
       mapInstanceRef.current = null;
     };
-  }, [assets]);
+  }, [assets, targetAssetId]);
 
   useEffect(() => {
     coordinatePinLayerRef.current?.clearLayers();

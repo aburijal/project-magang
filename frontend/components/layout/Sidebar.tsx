@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 const menuItems = [
@@ -36,15 +37,29 @@ const menuItems = [
   },
 ];
 
-export default function Sidebar() {
+interface SidebarProps {
+  mobileMenuOpen: boolean;
+  onClose: () => void;
+}
+
+export default function Sidebar({ mobileMenuOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-slate-900 text-white max-lg:hidden">
+    <>
+      {mobileMenuOpen && <button type="button" aria-label="Tutup menu navigasi" onClick={onClose} className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden" />}
+    <aside className={`fixed left-0 top-0 z-50 flex h-screen w-72 max-w-[86vw] flex-col bg-slate-900 text-white shadow-2xl transition-transform duration-200 lg:z-40 lg:w-64 lg:translate-x-0 lg:shadow-none ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
       {/* Logo */}
-      <div className="flex h-20 items-center border-b border-slate-700 px-5">
-        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-xl font-extrabold text-white shadow-lg shadow-blue-950/30">
-          K
+      <div className="flex h-16 items-center border-b border-slate-700 px-4 sm:h-20 sm:px-5">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white p-1 shadow-lg shadow-blue-950/30">
+          <Image
+            src="/logo-pemko.png"
+            alt="Logo Pemerintah Kota Lhokseumawe"
+            width={44}
+            height={44}
+            className="h-full w-full object-contain"
+            priority
+          />
         </div>
 
         <div className="ml-3">
@@ -78,6 +93,7 @@ export default function Sidebar() {
                   ? "bg-blue-600 text-white"
                   : "text-slate-300 hover:bg-slate-800 hover:text-white"
               }`}
+              onClick={onClose}
             >
               <span className="mr-3 w-5 text-center text-base">
                 {item.icon}
@@ -98,5 +114,6 @@ export default function Sidebar() {
         </p>
       </div>
     </aside>
+    </>
   );
 }
