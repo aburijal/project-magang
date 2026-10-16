@@ -38,7 +38,7 @@ export default function DetailAsetPage() {
         </div>
         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="grid gap-4 sm:grid-cols-2">{details.map(([label, value]) => <div key={label} className="rounded-lg bg-slate-50 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p><p className="mt-1 text-sm text-slate-900">{value}</p></div>)}</div>
-          {asset.koordinat_x !== null && asset.koordinat_y !== null && <Link href="/peta" className="mt-5 inline-flex rounded-lg border border-blue-200 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50">Lihat lokasi di peta</Link>}
+          {asset.koordinat_x !== null && asset.koordinat_y !== null && <Link href={`/peta?asset=${asset.id}`} className="mt-5 inline-flex rounded-lg border border-blue-200 px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50">Lihat lokasi di peta</Link>}
         </section>
       </div>
     </AppLayout>
