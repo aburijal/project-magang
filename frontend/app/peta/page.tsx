@@ -15,6 +15,12 @@ export default function PetaPage() {
   const [status, setStatus] = useState("");
   const [pinResetSignal, setPinResetSignal] = useState(0);
   const [assets, setAssets] = useState(dummyAssets);
+  const [targetAssetId] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    const assetParam = new URLSearchParams(window.location.search).get("asset");
+    const parsedAssetId = assetParam ? Number(assetParam) : NaN;
+    return Number.isFinite(parsedAssetId) ? parsedAssetId : null;
+  });
 
   useEffect(() => {
     const refresh = () => setAssets(loadAssets());
@@ -66,7 +72,7 @@ export default function PetaPage() {
           </div>
 
           {/* Map */}
-          <AssetMap assets={filteredAssets} resetSignal={pinResetSignal} />
+          <AssetMap assets={filteredAssets} resetSignal={pinResetSignal} targetAssetId={targetAssetId} />
 
           {/* Legend */}
           <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 text-sm text-slate-600 md:flex-row md:items-center md:justify-between">
