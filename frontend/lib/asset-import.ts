@@ -11,7 +11,7 @@ export interface AssetImportPreview {
   warning?: string;
 }
 
-const headerAliases: Record<keyof Omit<Asset, "id">, string[]> = {
+const headerAliases: Partial<Record<keyof Omit<Asset, "id">, string[]>> = {
   no: ["no", "nomor", "nomor urut"],
   no_register: ["no register", "nomor register", "register"],
   nama_barang_aset: ["nama aset", "nama barang/aset", "nama barang", "aset"],
@@ -23,6 +23,7 @@ const headerAliases: Record<keyof Omit<Asset, "id">, string[]> = {
   hak: ["hak", "status tanah"],
   tanggal_sertifikat: ["tanggal sertifikat", "tgl sertifikat"],
   no_sertifikat: ["nomor sertifikat", "no sertifikat", "no. sertifikat"],
+  status_sertifikat: ["status sertifikat", "status sertipikat"],
   penggunaan: ["penggunaan"],
   asal_usul: ["asal usul", "asal-usul"],
   nilai_perolehan: ["nilai perolehan", "nilai"],
@@ -44,6 +45,15 @@ function getValue(row: unknown[], columns: Partial<Record<keyof Omit<Asset, "id"
 function textValue(value: unknown, fallback = "-"): string {
   const text = String(value ?? "").trim();
   return text || fallback;
+}
+
+function certificateStatusValue(value: unknown): Asset["status_sertifikat"] {
+  const status = textValue(value, "");
+  if (status === "Bersertifikat" || status === "Belum Bersertifikat" || status === "Keterangan Lainnya") {
+    return status;
+  }
+  if (status === "Dalam Proses") return "Keterangan Lainnya";
+  return undefined;
 }
 
 function numberValue(value: unknown): number | null {
@@ -213,7 +223,7 @@ export async function previewAssetImport(file: File, existingAssets: Asset[]): P
     const columns: Partial<Record<keyof Omit<Asset, "id">, number>> = {};
     row.forEach((cell, index) => {
       const header = normalizeHeader(cell);
-      const key = assetKeys.find((item) => headerAliases[item].includes(header));
+      const key = assetKeys.find((item) => headerAliases[item]?.includes(header));
       if (key) columns[key] = index;
     });
     return { rowIndex, columns, score: Object.keys(columns).length };
@@ -255,6 +265,7 @@ export async function previewAssetImport(file: File, existingAssets: Asset[]): P
         hak: textValue(getValue(row, columns, "hak")),
         tanggal_sertifikat: dateValue(getValue(row, columns, "tanggal_sertifikat")),
         no_sertifikat: textValue(getValue(row, columns, "no_sertifikat")),
+        status_sertifikat: certificateStatusValue(getValue(row, columns, "status_sertifikat")),
         penggunaan: textValue(getValue(row, columns, "penggunaan")),
         asal_usul: textValue(getValue(row, columns, "asal_usul")),
         nilai_perolehan: numberValue(getValue(row, columns, "nilai_perolehan")),

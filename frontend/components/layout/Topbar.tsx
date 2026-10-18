@@ -151,7 +151,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
               <label className="block text-sm font-medium text-slate-700">Email<input name="email" type="email" required autoComplete="email" className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-blue-500" placeholder="nama@contoh.com" /></label>
               <label className="block text-sm font-medium text-slate-700">Password<input name="password" type="password" required autoComplete="current-password" className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none focus:border-blue-500" placeholder="Masukkan password" /></label>
               {loginError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{loginError}</p>}
-              <button type="submit" disabled={isSubmitting} className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">{isSubmitting ? "Memproses..." : "Masuk"}</button>
+              <button type="submit" disabled={isSubmitting} className="ui-button-primary w-full font-medium">{isSubmitting ? "Memproses..." : "Masuk"}</button>
             </form>
           </section>
         </div>

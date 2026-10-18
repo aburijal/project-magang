@@ -36,7 +36,7 @@ export default function PengaturanPage() {
             <label className="block text-sm font-medium text-slate-700 md:col-span-2">Unit pengelola<input value={settings.managingUnit} onChange={(event) => updateSetting("managingUnit", event.target.value)} className="mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 font-normal outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" /></label>
           </div>
         </section>
-        <div className="flex items-center gap-3"><button type="button" onClick={handleSave} className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">Simpan Pengaturan</button>{saved && <span className="text-sm font-medium text-emerald-600">Pengaturan berhasil disimpan.</span>}</div>
+        <div className="flex items-center gap-3"><button type="button" onClick={handleSave} className="ui-button-primary font-semibold shadow-sm">Simpan Pengaturan</button>{saved && <span className="text-sm font-medium text-emerald-600">Pengaturan berhasil disimpan.</span>}</div>
       </div>
     </AppLayout>
   );
