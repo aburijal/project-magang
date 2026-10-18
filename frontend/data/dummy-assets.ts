@@ -16,6 +16,7 @@ export const dummyAssets: Asset[] = [
     hak: "Hak Pakai",
     tanggal_sertifikat: "-",
     no_sertifikat: "-",
+    status_sertifikat: "Belum Bersertifikat",
 
     penggunaan: "Kantor Mukim Teungoh",
     asal_usul: "Pembelian",
@@ -42,6 +43,7 @@ export const dummyAssets: Asset[] = [
     hak: "Hak Pakai",
     tanggal_sertifikat: "-",
     no_sertifikat: "-",
+    status_sertifikat: "Keterangan Lainnya",
 
     penggunaan: "-",
     asal_usul: "Pembelian",
@@ -68,6 +70,7 @@ export const dummyAssets: Asset[] = [
     hak: "Hak Pakai",
     tanggal_sertifikat: "05/02/2008",
     no_sertifikat: "1",
+    status_sertifikat: "Bersertifikat",
 
     penggunaan: "Pasar Hewan Keude Punteut",
     asal_usul: "Pembelian",
@@ -94,6 +97,7 @@ export const dummyAssets: Asset[] = [
     hak: "Hak Pakai",
     tanggal_sertifikat: "05/02/2008",
     no_sertifikat: "12",
+    status_sertifikat: "Bersertifikat",
 
     penggunaan: "Pasar Hewan Keude Punteut",
     asal_usul: "Pembelian",
@@ -120,6 +124,7 @@ export const dummyAssets: Asset[] = [
     hak: "Hak Pakai",
     tanggal_sertifikat: "-",
     no_sertifikat: "-",
+    status_sertifikat: "Belum Bersertifikat",
 
     penggunaan: "Pasar Sayur Keude Punteut",
     asal_usul: "Pembelian",

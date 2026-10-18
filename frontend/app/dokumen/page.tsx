@@ -56,8 +56,13 @@ export default function DokumenPage() {
 
   useEffect(() => {
     const refresh = () => {
-      setAssets(loadAssets());
-      setDocuments(loadDocuments());
+      const nextAssets = loadAssets();
+      const assetIds = new Set(nextAssets.map((asset) => asset.id));
+      const storedDocuments = loadDocuments();
+      const nextDocuments = storedDocuments.filter((document) => assetIds.has(document.assetId));
+      if (nextDocuments.length !== storedDocuments.length) saveDocuments(nextDocuments);
+      setAssets(nextAssets);
+      setDocuments(nextDocuments);
     };
     refresh();
     window.addEventListener("assets-updated", refresh);
@@ -180,7 +185,7 @@ export default function DokumenPage() {
             <h1 className="mt-1 text-2xl font-bold text-slate-900">Dokumen &amp; Foto Aset</h1>
             <p className="mt-1 text-sm text-slate-500">Upload dan kelola beberapa foto pendukung setiap aset.</p>
           </div>
-          <button type="button" onClick={openUpload} className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700">
+          <button type="button" onClick={openUpload} className="ui-button-primary font-medium shadow-sm">
             + Upload Foto
           </button>
         </div>
@@ -260,7 +265,7 @@ export default function DokumenPage() {
             </label>
             {form.photos.length > 0 && <div className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-5">{form.photos.map((photo, index) => <div key={`${photo.slice(0, 20)}-${index}`} className="group relative aspect-square overflow-hidden rounded-lg border border-slate-200"><img src={photo} alt={`Foto ${index + 1}`} className="h-full w-full object-cover" /><button type="button" onClick={() => removePhoto(index)} className="absolute right-1 top-1 hidden rounded-full bg-red-600 px-1.5 text-sm text-white group-hover:block" aria-label={`Hapus foto ${index + 1}`}>×</button></div>)}</div>}
             {formError && <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{formError}</p>}
-            <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setModal(null)} className="rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Batal</button><button type="submit" disabled={isReadingFiles} className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60">{editingId ? "Simpan perubahan" : "Simpan dokumen"}</button></div>
+            <div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setModal(null)} className="ui-button-secondary font-medium">Batal</button><button type="submit" disabled={isReadingFiles} className="ui-button-primary font-medium">{editingId ? "Simpan perubahan" : "Simpan dokumen"}</button></div>
           </form>
         </div>
       )}
@@ -271,7 +276,7 @@ export default function DokumenPage() {
             <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-bold text-slate-900">{selectedDocument.title}</h2><p className="mt-1 text-sm text-slate-500">{assetById.get(selectedDocument.assetId)?.nama_barang_aset} · {selectedDocument.type}</p></div><button type="button" onClick={() => setModal(null)} className="text-2xl leading-none text-slate-400 hover:text-slate-700" aria-label="Tutup">×</button></div>
             {selectedDocument.description && <p className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-600">{selectedDocument.description}</p>}
             <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{selectedDocument.photos.map((photo, index) => <figure key={`${photo.slice(0, 20)}-${index}`} className="overflow-hidden rounded-lg border border-slate-200"><img src={photo} alt={`${selectedDocument.title} ${index + 1}`} className="aspect-[4/3] w-full object-cover" /><figcaption className="px-3 py-2 text-xs text-slate-500">Foto {index + 1} dari {selectedDocument.photos.length}</figcaption></figure>)}</div>
-            <div className="mt-6 flex justify-end gap-3"><Link href={`/aset/${selectedDocument.assetId}`} className="rounded-lg border border-blue-200 px-4 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-50">Lihat data aset</Link><button type="button" onClick={() => openEdit(selectedDocument)} className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700">Edit dokumen</button></div>
+            <div className="mt-6 flex justify-end gap-3"><Link href={`/aset/${selectedDocument.assetId}`} className="ui-button ui-button-outline font-medium text-blue-700">Lihat data aset</Link><button type="button" onClick={() => openEdit(selectedDocument)} className="ui-button-primary font-medium">Edit dokumen</button></div>
           </div>
         </div>
       )}

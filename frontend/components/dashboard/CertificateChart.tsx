@@ -6,6 +6,7 @@ export default function CertificateChart({ assets }: { assets: Asset[] }) {
   const certificateData = [
     { label: "Bersertifikat", value: summary.certified, color: "bg-emerald-500" },
     { label: "Belum Bersertifikat", value: summary.uncertified, color: "bg-orange-500" },
+    { label: "Keterangan Lainnya", value: summary.other, color: "bg-blue-500" },
   ];
 
   return (

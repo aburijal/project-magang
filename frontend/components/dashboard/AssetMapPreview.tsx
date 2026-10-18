@@ -17,7 +17,7 @@ export default function AssetMapPreview({ assets }: { assets: Asset[] }) {
 
         <a
           href="/peta"
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="ui-button ui-button-primary font-medium"
         >
           Lihat Peta Lengkap ↗
         </a>

@@ -14,10 +14,61 @@
 }
 
 body {
-  background: #f3f6fb;
+  background: #f5f7fb;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   overflow-x: hidden;
+}
+
+html.dark body {
+  background: #0f172a;
+  color: #e2e8f0;
+}
+
+html.dark .bg-white,
+html.dark .bg-white\/95 {
+  background-color: #1e293b;
+}
+
+html.dark .bg-slate-50,
+html.dark .bg-slate-50\/70,
+html.dark .bg-slate-100 {
+  background-color: #172033;
+}
+
+html.dark .bg-slate-950\/50 {
+  background-color: rgb(2 6 23 / 70%);
+}
+
+html.dark .text-slate-900,
+html.dark .text-slate-800,
+html.dark .text-slate-700 {
+  color: #e2e8f0;
+}
+
+html.dark .text-slate-600,
+html.dark .text-slate-500 {
+  color: #94a3b8;
+}
+
+html.dark .border-slate-200,
+html.dark .border-slate-200\/80,
+html.dark .border-slate-100,
+html.dark .border-slate-300 {
+  border-color: #334155;
+}
+
+html.dark input,
+html.dark select,
+html.dark textarea {
+  border-color: #475569;
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b;
 }
 
 button,
@@ -31,6 +82,76 @@ button {
   cursor: pointer;
 }
 
+button:not(.fixed),
+.ui-button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.875rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease,
+    box-shadow 180ms ease, opacity 180ms ease, transform 180ms ease;
+}
+
+button:not(.fixed):active,
+.ui-button:active {
+  transform: translateY(1px);
+}
+
+button:not(.fixed):focus-visible,
+.ui-button:focus-visible {
+  outline: 3px solid rgb(37 99 235 / 25%);
+  outline-offset: 2px;
+}
+
+button:not(.fixed):disabled,
+.ui-button[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.ui-button-primary {
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.ui-button-primary:hover {
+  background: #1d4ed8;
+}
+
+.ui-button-secondary,
+.ui-button-outline {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+}
+
+.ui-button-secondary:hover,
+.ui-button-outline:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.ui-button-danger {
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.ui-button-danger:hover {
+  background: #ffe4e6;
+}
+
+.ui-button-icon {
+  min-width: 34px;
+  padding: 0.4rem;
+}
+
 /* Leaflet */
 .leaflet-container {
   z-index: 0;
@@ -38,6 +159,174 @@ button {
 
 .leaflet-control-container {
   z-index: 10;
+}
+
+.asset-layer-control {
+  position: relative;
+}
+
+.asset-layer-control__toggle,
+.asset-location-control {
+  box-sizing: border-box;
+  display: flex;
+  width: 46px;
+  height: 46px;
+  min-height: 46px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  padding: 0;
+  box-shadow: 0 2px 6px rgb(15 23 42 / 18%);
+  transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease,
+    box-shadow 180ms ease, transform 180ms ease;
+}
+
+.asset-layer-control__toggle:hover,
+.asset-location-control:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.asset-layer-control__toggle:active,
+.asset-location-control:active {
+  transform: translateY(1px);
+}
+
+.asset-layer-control__toggle:focus-visible,
+.asset-location-control:focus-visible,
+.asset-layer-control__option:focus-visible {
+  outline: 3px solid rgb(37 99 235 / 25%);
+  outline-offset: 2px;
+}
+
+.asset-layer-control__toggle svg,
+.asset-location-control svg {
+  display: block;
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.asset-layer-control__menu {
+  position: absolute;
+  top: 52px;
+  right: 0;
+  display: grid;
+  min-width: 220px;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgb(15 23 42 / 18%);
+}
+
+.asset-layer-control__menu[hidden] {
+  display: none;
+}
+
+.asset-layer-control__option {
+  display: flex;
+  width: 100%;
+  min-height: 60px;
+  align-items: center;
+  gap: 11px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #334155;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.asset-layer-control__option:hover {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.asset-layer-control__option.is-active {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.asset-layer-control__thumbnail {
+  display: block;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border: 1px solid #dbe4ea;
+  border-radius: 8px;
+}
+
+.asset-layer-control__thumbnail svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.asset-layer-control__label {
+  line-height: 1.2;
+}
+
+.asset-location-control {
+  cursor: pointer;
+}
+
+.asset-location-control:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.asset-map-marker {
+  border: 0;
+  background: transparent;
+}
+
+.asset-map-marker__pin {
+  display: block;
+  width: 32px;
+  height: 42px;
+  transform-origin: 50% 100%;
+  transition: transform 180ms ease, filter 180ms ease;
+}
+
+.asset-map-marker__pin svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 2px 3px rgb(15 23 42 / 30%));
+  overflow: visible;
+}
+
+.asset-map-marker__pin path {
+  fill: var(--marker-color);
+  stroke: #ffffff;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.asset-map-marker__pin circle {
+  fill: #ffffff;
+}
+
+.asset-map-marker:hover .asset-map-marker__pin,
+.asset-map-marker:focus .asset-map-marker__pin {
+  filter: brightness(1.05);
+  transform: scale(1.1);
 }
 
 .asset-map-popup .leaflet-popup-content {
@@ -230,11 +519,6 @@ button {
 
   main .rounded-xl {
     border-radius: 0.75rem;
-  }
-
-  main button,
-  main a {
-    min-height: 2.5rem;
   }
 
   main input,

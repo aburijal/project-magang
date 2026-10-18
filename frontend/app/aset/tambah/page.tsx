@@ -84,6 +84,7 @@ export default function TambahAsetPage() {
     const nextAssetId = Date.now();
     const today = new Date().toLocaleDateString("id-ID");
     const certificateNumber = String(form.get("no_sertifikat") ?? "").trim();
+    const selectedCertificateStatus = String(form.get("status_sertifikat") ?? "Keterangan Lainnya");
 
     addAsset({
       id: nextAssetId,
@@ -98,6 +99,7 @@ export default function TambahAsetPage() {
       hak: String(form.get("hak") ?? "Hak Pakai"),
       tanggal_sertifikat: certificateNumber ? today : "-",
       no_sertifikat: certificateNumber || "-",
+      status_sertifikat: certificateNumber ? "Bersertifikat" : selectedCertificateStatus as "Belum Bersertifikat" | "Keterangan Lainnya",
       penggunaan: String(form.get("penggunaan") ?? "").trim() || "-",
       asal_usul: String(form.get("asal_usul") ?? "Pembelian"),
       nilai_perolehan: Number(form.get("nilai") ?? 0) || null,
@@ -123,7 +125,7 @@ export default function TambahAsetPage() {
     <AppLayout>
       <div className="mx-auto max-w-5xl space-y-6">
         <div>
-          <button type="button" onClick={() => router.back()} className="text-sm font-medium text-blue-600 hover:text-blue-700">← Kembali ke Data Aset</button>
+          <button type="button" onClick={() => router.back()} className="ui-button ui-button-outline text-sm font-medium text-blue-600">← Kembali ke Data Aset</button>
           <h1 className="mt-4 text-2xl font-bold text-slate-900">Tambah Aset Tanah</h1>
           <p className="mt-1 text-sm text-slate-500">Masukkan data aset tanah baru ke katalog inventaris.</p>
         </div>
@@ -177,6 +179,7 @@ export default function TambahAsetPage() {
               <label className="text-sm font-medium text-slate-700">Tanggal perolehan<input name="tanggal" type="date" className={inputClass} /></label>
               <label className="text-sm font-medium text-slate-700">Status hak<select name="hak" className={inputClass}><option>Hak Pakai</option><option>Hak Milik</option><option>Hak Pengelolaan</option><option>HGB</option></select></label>
               <label className="text-sm font-medium text-slate-700">Nomor sertifikat<input name="no_sertifikat" className={inputClass} placeholder="Kosongkan bila belum ada" /></label>
+              <label className="text-sm font-medium text-slate-700">Status sertifikat<select name="status_sertifikat" className={inputClass} defaultValue="Keterangan Lainnya"><option>Bersertifikat</option><option>Belum Bersertifikat</option><option>Keterangan Lainnya</option></select></label>
               <label className="text-sm font-medium text-slate-700">Penggunaan<input name="penggunaan" className={inputClass} placeholder="Contoh: Kantor pemerintahan" /></label>
               <label className="text-sm font-medium text-slate-700">Asal usul<select name="asal_usul" className={inputClass}><option>Pembelian</option><option>Hibah</option><option>Penyerahan</option><option>Lainnya</option></select></label>
             </div>
@@ -191,7 +194,7 @@ export default function TambahAsetPage() {
             <label className="mt-4 block text-sm font-medium text-slate-700">Keterangan<textarea name="keterangan" rows={3} className="mt-2 w-full rounded-lg border border-slate-300 p-3 text-sm outline-none focus:border-blue-500" /></label>
           </section>
           {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-          <div className="flex justify-end gap-3 border-t border-slate-100 pt-5"><button type="button" onClick={() => router.back()} className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">Batal</button><button type="submit" disabled={isReadingPhotos} className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60">{isReadingPhotos ? "Memproses foto..." : "Simpan Aset"}</button></div>
+          <div className="flex justify-end gap-3 border-t border-slate-100 pt-5"><button type="button" onClick={() => router.back()} className="ui-button-secondary font-medium">Batal</button><button type="submit" disabled={isReadingPhotos} className="ui-button-primary font-medium">{isReadingPhotos ? "Memproses foto..." : "Simpan Aset"}</button></div>
         </form>
       </div>
     </AppLayout>

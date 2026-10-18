@@ -12,7 +12,7 @@ export default function AppLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-slate-100">
+    <div className="min-h-screen overflow-x-hidden bg-[#f5f7fb]">
       <Sidebar mobileMenuOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
 
       <Topbar onMenuClick={() => setMobileMenuOpen((open) => !open)} />
