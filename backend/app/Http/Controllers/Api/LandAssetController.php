@@ -208,6 +208,25 @@ class LandAssetController extends Controller
             ],
         ]);
 
+        // Periksa kombinasi OPD dan nomor register yang efektif.
+        $opdId = $validated['opd_id'] ?? $land_asset->opd_id;
+
+        $registerNumber = $validated['register_number']
+            ?? $land_asset->register_number;
+
+        $duplicate = LandAsset::where('opd_id', $opdId)
+            ->where('register_number', $registerNumber)
+            ->where('id', '!=', $land_asset->id)
+            ->exists();
+
+        if ($duplicate) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'register_number' => [
+                    'Nomor register tersebut sudah digunakan oleh OPD yang dipilih.',
+                ],
+            ]);
+        }
+
         $land_asset->update($validated);
 
         return response()->json([
