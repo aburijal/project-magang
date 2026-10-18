@@ -10,7 +10,7 @@ interface MapFilterProps {
   onReset: () => void;
 }
 
-const districts = [
+export const districts = [
   "Banda Sakti",
   "Muara Dua",
   "Muara Satu",

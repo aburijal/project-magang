@@ -11,6 +11,7 @@ import {
   saveDocuments,
 } from "@/lib/document-storage";
 import { Asset } from "@/types/asset";
+import { districts } from "@/components/map/MapFilter";
 
 interface DocumentForm {
   assetId: string;
@@ -45,6 +46,7 @@ export default function DokumenPage() {
   const [search, setSearch] = useState("");
   const [assetFilter, setAssetFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [districtFilter, setDistrictFilter] = useState("");
   const [modal, setModal] = useState<"form" | "detail" | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<AssetDocument | null>(null);
@@ -79,7 +81,8 @@ export default function DokumenPage() {
       || asset?.nama_barang_aset.toLowerCase().includes(query);
     const matchesAsset = !assetFilter || String(document.assetId) === assetFilter;
     const matchesType = !typeFilter || document.type === typeFilter;
-    return matchesSearch && matchesAsset && matchesType;
+    const matchesDistrict = !districtFilter || asset?.lokasi_aset.toLowerCase().includes(districtFilter.toLowerCase());
+    return matchesSearch && matchesAsset && matchesType && matchesDistrict;
   });
 
   const openUpload = () => {
@@ -199,6 +202,10 @@ export default function DokumenPage() {
               <option value="">Semua Jenis</option>
               {Array.from(new Set(documents.map((document) => document.type))).map((type) => <option key={type} value={type}>{type}</option>)}
             </select>
+            <select value={districtFilter} onChange={(event) => setDistrictFilter(event.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
+              <option value="">Semua Kecamatan</option>
+              {districts.map((district) => <option key={district} value={district}>{district}</option>)}
+            </select>
           </div>
 
           {filteredDocuments.length ? (
@@ -213,8 +220,8 @@ export default function DokumenPage() {
                     </button>
                     <div className="p-4">
                       <h2 className="font-semibold text-slate-900">{document.title}</h2>
-                      <p className="mt-1 text-xs text-slate-500">Aset: AT-{asset?.no_register ?? "-"} — {asset?.nama_barang_aset ?? "Aset tidak ditemukan"}</p>
-                      <p className="mt-2 text-xs text-slate-500">{document.type}{document.description ? ` · ${document.description}` : ""}</p>
+                      <p className="mt-1 text-xs text-slate-500">Dinas/OPD: {asset?.dinas_opd ?? "-"}</p>
+                      <p className="mt-2 text-xs text-slate-500">Penggunaan: {asset?.penggunaan ?? "-"}</p>
                       <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium">
                         <button type="button" onClick={() => openDetail(document)} className="rounded bg-blue-50 px-2.5 py-1.5 text-blue-700 hover:bg-blue-100">Lihat detail</button>
                         <button type="button" onClick={() => openEdit(document)} className="rounded bg-slate-100 px-2.5 py-1.5 text-slate-700 hover:bg-slate-200">Edit</button>

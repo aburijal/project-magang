@@ -5,10 +5,16 @@ import { useParams } from "next/navigation";
 import { useMemo } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { getAsset } from "@/lib/asset-storage";
+import { loadDocuments } from "@/lib/document-storage";
+import { exportAssetToPdf } from "@/lib/asset-export";
 
 export default function DetailAsetPage() {
   const params = useParams<{ id: string }>();
   const asset = useMemo(() => getAsset(Number(params.id)), [params.id]);
+  const document = useMemo(
+    () => loadDocuments().find((item) => item.assetId === Number(params.id)),
+    [params.id],
+  );
 
   if (!asset) {
     return <AppLayout><div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-600">Aset tidak ditemukan.</div></AppLayout>;
@@ -34,7 +40,10 @@ export default function DetailAsetPage() {
       <div className="mx-auto max-w-4xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div><Link href="/aset" className="text-sm font-medium text-blue-600 hover:text-blue-700">← Kembali ke Data Aset</Link><h1 className="mt-3 text-2xl font-bold text-slate-900">{asset.nama_barang_aset}</h1><p className="mt-1 text-sm text-slate-500">Detail inventaris aset tanah</p></div>
-          <Link href={`/aset/${asset.id}/edit`} className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700">Edit Aset</Link>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => exportAssetToPdf(asset, document)} className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 hover:bg-red-100">Ekspor PDF</button>
+            <Link href={`/aset/${asset.id}/edit`} className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700">Edit Aset</Link>
+          </div>
         </div>
         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="grid gap-4 sm:grid-cols-2">{details.map(([label, value]) => <div key={label} className="rounded-lg bg-slate-50 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p><p className="mt-1 text-sm text-slate-900">{value}</p></div>)}</div>
