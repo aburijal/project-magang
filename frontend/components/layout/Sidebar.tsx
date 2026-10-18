@@ -26,11 +26,6 @@ const menuItems = [
     icon: "📄",
   },
   {
-    name: "Pengguna",
-    href: "/pengguna",
-    icon: "👤",
-  },
-  {
     name: "Pengaturan",
     href: "/pengaturan",
     icon: "⚙",
