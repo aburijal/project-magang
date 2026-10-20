@@ -6,10 +6,11 @@ import { useSearchParams } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import { dummyAssets } from "@/data/dummy-assets";
 import { deleteAssetWithDocuments, loadAssets, saveAssets } from "@/lib/asset-storage";
-import { addDocument } from "@/lib/document-storage";
+import { AssetDocument, loadDocuments, saveDocuments } from "@/lib/document-storage";
 import { getAssetStatus } from "@/lib/asset-utils";
 import { Asset } from "@/types/asset";
-import { AssetImportPreview, previewAssetImport } from "@/lib/asset-import";
+import { AssetImportPreview, findDuplicateAsset, previewAssetImport } from "@/lib/asset-import";
+import { uniquePhotos, photoFingerprint } from "@/lib/photo-utils";
 import {
   acquisitionSourceOptions,
   assetStatusOptions,
@@ -31,7 +32,6 @@ function AsetContent({ initialStatus }: { initialStatus: AssetStatusFilter }) {
   const [acquisitionSource, setAcquisitionSource] = useState<AcquisitionSourceFilter>("Semua Asal Usul");
   const [assets, setAssets] = useState<Asset[]>(dummyAssets);
   const [importPreview, setImportPreview] = useState<AssetImportPreview[] | null>(null);
-  const [importError, setImportError] = useState("");
   const [deleteError, setDeleteError] = useState("");
   const [isReadingImport, setIsReadingImport] = useState(false);
 
@@ -89,39 +89,93 @@ function AsetContent({ initialStatus }: { initialStatus: AssetStatusFilter }) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    setImportError("");
     setIsReadingImport(true);
     try {
       setImportPreview(await previewAssetImport(file, loadAssets()));
     } catch (error) {
-      setImportError(error instanceof Error ? error.message : "File Excel tidak dapat dibaca.");
+      setImportPreview([{
+        rowNumber: 0,
+        asset: null,
+        error: error instanceof Error ? error.message : "File Excel tidak dapat dibaca.",
+        photos: [],
+      }]);
     } finally {
       setIsReadingImport(false);
     }
   }
 
-  function confirmImport() {
+  async function confirmImport() {
     if (!importPreview) return;
-    const validAssets = importPreview.flatMap((item) => item.error || !item.asset ? [] : [item.asset]);
-    const photoItems = importPreview.filter((item) => item.asset && item.photos.length);
-    if (!validAssets.length && !photoItems.length) {
-      setImportError("Tidak ada data valid yang dapat ditambahkan.");
+    const validationErrors = importPreview.filter((item) => item.error || !item.asset);
+    if (validationErrors.length) {
       return;
     }
-    if (validAssets.length) saveAssets([...loadAssets(), ...validAssets]);
-    photoItems
-      .forEach((item) => addDocument({
-        id: `import-${item.asset!.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        assetId: item.existingAssetId ?? item.asset!.id,
-        title: `Dokumen foto - ${item.asset!.nama_barang_aset}`,
-        type: "Foto Aset",
-        description: "Foto diimpor dari file Excel.",
-        photos: item.photos,
-        createdAt: new Date().toISOString(),
-      }));
-    setAssets(loadAssets());
-    setImportPreview(null);
-    setImportError("");
+
+    const currentAssets = loadAssets();
+    const duplicate = importPreview
+      .map((item) => item.asset)
+      .filter((asset): asset is Asset => Boolean(asset))
+      .find((asset) => findDuplicateAsset(asset, currentAssets));
+    if (duplicate) {
+      return;
+    }
+
+    try {
+      const validAssets = importPreview.map((item) => item.asset as Asset);
+      const currentDocuments = loadDocuments();
+      const importedDocuments: AssetDocument[] = [];
+      const existingPhotoHashes = new Map<number, Set<string>>();
+      for (const document of currentDocuments) {
+        const hashes = existingPhotoHashes.get(document.assetId) ?? new Set<string>();
+        for (const photo of document.photos) hashes.add(await photoFingerprint(photo));
+        existingPhotoHashes.set(document.assetId, hashes);
+      }
+
+      for (const item of importPreview) {
+        if (!item.asset || !item.photos.length) continue;
+        const photos = await uniquePhotos(item.photos);
+        const hashes = existingPhotoHashes.get(item.asset.id) ?? new Set<string>();
+        const newPhotos: string[] = [];
+        for (const photo of photos) {
+          const hash = await photoFingerprint(photo);
+          if (hashes.has(hash)) continue;
+          hashes.add(hash);
+          newPhotos.push(photo);
+        }
+        if (newPhotos.length) {
+          importedDocuments.push({
+            id: `import-${item.asset.id}-${Date.now()}-${importedDocuments.length}`,
+            assetId: item.asset.id,
+            title: `Dokumen foto - ${item.asset.nama_barang_aset}`,
+            type: "Foto Aset",
+            description: "Foto diimpor dari file Excel.",
+            photos: newPhotos,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+
+      const previousAssets = window.localStorage.getItem("lhokseumawe-assets");
+      const previousDocuments = window.localStorage.getItem("lhokseumawe-asset-documents");
+      try {
+        saveAssets([...currentAssets, ...validAssets]);
+        saveDocuments([...importedDocuments, ...currentDocuments]);
+      } catch (error) {
+        if (previousAssets === null) window.localStorage.removeItem("lhokseumawe-assets");
+        else window.localStorage.setItem("lhokseumawe-assets", previousAssets);
+        if (previousDocuments === null) window.localStorage.removeItem("lhokseumawe-asset-documents");
+        else window.localStorage.setItem("lhokseumawe-asset-documents", previousDocuments);
+        throw error;
+      }
+      setAssets(loadAssets());
+      setImportPreview(null);
+    } catch (error) {
+      setImportPreview((current) => current?.map((item, index) => (
+        index === 0
+          ? { ...item, error: error instanceof Error ? error.message : "Data tidak dapat disimpan." }
+          : item
+      )) ?? null);
+    }
   }
 
   return (
@@ -143,7 +197,6 @@ function AsetContent({ initialStatus }: { initialStatus: AssetStatusFilter }) {
             </Link>
           </div>
         </div>
-        {importError && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{importError}</p>}
         {deleteError && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{deleteError}</p>}
         <Link href="/aset" className="total-asset-card" aria-label={`Total aset: ${assets.length} bidang tanah terdaftar`}>
           <span className="total-asset-card__icon" aria-hidden="true">
@@ -162,7 +215,7 @@ function AsetContent({ initialStatus }: { initialStatus: AssetStatusFilter }) {
             <div><h2 className="font-semibold text-slate-900">Preview Import Excel</h2><p className="text-sm text-slate-500">{importPreview.filter((item) => !item.error).length} baris baru, {importPreview.filter((item) => item.error).length} data identik atau ditolak.</p></div>
             <div className="flex gap-2"><button type="button" onClick={() => setImportPreview(null)} className="ui-button-secondary font-medium">Batal</button><button type="button" onClick={confirmImport} className="ui-button-primary font-medium">Tambahkan Data Valid</button></div>
           </div>
-          <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-3 py-2">Baris</th><th className="px-3 py-2">Nama aset</th><th className="px-3 py-2">Register</th><th className="px-3 py-2">Alamat</th><th className="px-3 py-2">Status</th></tr></thead><tbody className="divide-y divide-slate-100">{importPreview.slice(0, 20).map((item) => <tr key={item.rowNumber}><td className="px-3 py-2 text-slate-500">{item.rowNumber}</td><td className="px-3 py-2 font-medium text-slate-800">{item.asset?.nama_barang_aset || "-"}</td><td className="px-3 py-2 text-slate-600">{item.asset?.no_register || "-"}</td><td className="px-3 py-2 text-slate-600">{item.asset?.alamat || "-"}</td><td className={`px-3 py-2 text-xs font-medium ${item.error ? "text-slate-500" : item.warning ? "text-amber-600" : "text-emerald-600"}`}>{item.error || item.warning || "Siap diimport"}</td></tr>)}</tbody></table></div>
+          <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-3 py-2">Baris</th><th className="px-3 py-2">Nama aset</th><th className="px-3 py-2">Register</th><th className="px-3 py-2">Alamat</th><th className="px-3 py-2">Status</th></tr></thead><tbody className="divide-y divide-slate-100">{importPreview.slice(0, 20).map((item) => <tr key={item.rowNumber}><td className="px-3 py-2 text-slate-500">{item.rowNumber || "-"}</td><td className="px-3 py-2 font-medium text-slate-800">{item.asset?.nama_barang_aset || "-"}</td><td className="px-3 py-2 text-slate-600">{item.asset?.no_register || "-"}</td><td className="px-3 py-2 text-slate-600">{item.asset?.alamat || "-"}</td><td className={`px-3 py-2 text-xs font-medium ${item.error ? "text-red-600" : item.warning ? "text-amber-600" : "text-emerald-600"}`}>{item.error || item.warning || "Siap diimport"}</td></tr>)}</tbody></table></div>
           {importPreview.length > 20 && <p className="mt-3 text-xs text-slate-500">Menampilkan 20 baris pertama. Semua baris valid tetap akan diimport.</p>}
         </section>}
 
