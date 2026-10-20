@@ -33,26 +33,19 @@ function createAssetMarkerIcon(
     className: "asset-map-marker",
     html: `
       <span class="asset-map-marker__pin" style="--marker-color: ${color}" aria-hidden="true">
-        <svg viewBox="0 0 32 42" role="presentation">
-          <path d="M16 1.5C8.27 1.5 2 7.77 2 15.5c0 10.38 14 24.04 14 24.04S30 25.88 30 15.5C30 7.77 23.73 1.5 16 1.5Z" />
-          <circle cx="16" cy="15.5" r="5.5" />
+        <svg viewBox="0 0 24 30" role="presentation">
+          <path d="M12 1.5C6.4 1.5 2 5.9 2 11.5c0 7.4 10 16.4 10 16.4s10-9 10-16.4c0-5.6-4.4-10-10-10Z" />
+          <circle cx="12" cy="11.5" r="4.25" />
         </svg>
       </span>
     `,
-    iconSize: [32, 42],
-    iconAnchor: [16, 42],
-    popupAnchor: [0, -39],
+    iconSize: [24, 30],
+    iconAnchor: [12, 30],
+    popupAnchor: [0, -28],
   });
 }
 
 function createAssetPopup(asset: Asset, status: string): string {
-  const area = asset.luas_m2 === null
-    ? "-"
-    : `${asset.luas_m2.toLocaleString("id-ID")} m²`;
-  const coordinates = asset.koordinat_x === null || asset.koordinat_y === null
-    ? "-"
-    : `${asset.koordinat_x.toFixed(6)}, ${asset.koordinat_y.toFixed(6)}`;
-
   return `
     <div class="asset-popup">
       <div class="asset-popup__heading">
@@ -62,12 +55,8 @@ function createAssetPopup(asset: Asset, status: string): string {
         </div>
       </div>
       <dl class="asset-popup__details">
-        <div><dt>Lokasi</dt><dd>${assetValue(asset.lokasi_aset)}</dd></div>
-        <div><dt>Jenis aset</dt><dd>${assetValue(asset.nama_barang_aset)}</dd></div>
-        <div><dt>Luas</dt><dd>${assetValue(area)}</dd></div>
+        <div><dt>Alamat</dt><dd>${assetValue(asset.alamat)}</dd></div>
         <div><dt>Status</dt><dd>${assetValue(status)}</dd></div>
-        <div><dt>Status hak</dt><dd>${assetValue(asset.hak)}</dd></div>
-        <div><dt>Koordinat</dt><dd>${assetValue(coordinates)}</dd></div>
       </dl>
       <a class="asset-popup__link" href="/aset/${asset.id}">Lihat detail aset <span aria-hidden="true">→</span></a>
     </div>
@@ -153,8 +142,8 @@ export default function AssetMap({
         })
           .bindPopup(createAssetPopup(asset, status), {
             className: "asset-map-popup",
-            maxWidth: 360,
-            minWidth: 280,
+            maxWidth: 280,
+            minWidth: 210,
           })
           .addTo(map);
 

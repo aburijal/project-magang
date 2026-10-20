@@ -10,6 +10,7 @@ import {
   loadDocuments,
   saveDocuments,
 } from "@/lib/document-storage";
+import { photoFingerprint, uniquePhotos } from "@/lib/photo-utils";
 import { Asset } from "@/types/asset";
 import { districts } from "@/components/map/MapFilter";
 import { getAssetStatus } from "@/lib/asset-utils";
@@ -155,7 +156,7 @@ export default function DokumenPage() {
     }));
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!form.assetId || !form.title.trim()) {
       setFormError("Pilih aset dan isi nama dokumen terlebih dahulu.");
@@ -166,13 +167,38 @@ export default function DokumenPage() {
       return;
     }
 
+    let newPhotos: string[];
+    try {
+      const selectedPhotos = await uniquePhotos(form.photos);
+      const otherDocuments = documents.filter((document) => document.id !== editingId);
+      const existingPhotoHashes = new Set<string>();
+      for (const document of otherDocuments) {
+        if (document.assetId !== Number(form.assetId)) continue;
+        for (const photo of document.photos) existingPhotoHashes.add(await photoFingerprint(photo));
+      }
+      newPhotos = [];
+      for (const photo of selectedPhotos) {
+        const hash = await photoFingerprint(photo);
+        if (existingPhotoHashes.has(hash)) continue;
+        existingPhotoHashes.add(hash);
+        newPhotos.push(photo);
+      }
+    } catch (error) {
+      setFormError(error instanceof Error ? `Upload dibatalkan! ${error.message}` : "Upload dibatalkan! Foto tidak dapat divalidasi.");
+      return;
+    }
+    if (!newPhotos.length) {
+      setFormError("Upload dibatalkan! Foto yang dipilih sudah tersimpan untuk aset ini. Tidak ada foto atau dokumen baru yang ditambahkan.");
+      return;
+    }
+
     const nextDocument: AssetDocument = {
       id: editingId ?? `document-${Date.now()}`,
       assetId: Number(form.assetId),
       title: form.title.trim(),
       type: form.type,
       description: form.description.trim(),
-      photos: form.photos,
+      photos: newPhotos,
       createdAt: editingId
         ? documents.find((document) => document.id === editingId)?.createdAt ?? new Date().toISOString()
         : new Date().toISOString(),

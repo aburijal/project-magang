@@ -1,6 +1,7 @@
 import * as XLSX from "xlsx";
 import ExcelJS from "exceljs";
 import { Asset } from "@/types/asset";
+import { hasValidCoordinates, parseCoordinatePair, ParsedCoordinates } from "@/lib/coordinate-parser";
 
 export interface AssetImportPreview {
   rowNumber: number;
@@ -9,6 +10,31 @@ export interface AssetImportPreview {
   photos: string[];
   existingAssetId?: number;
   warning?: string;
+}
+
+function comparable(value: unknown): string {
+  return String(value ?? "").trim().replace(/\s+/g, " ").toLocaleLowerCase("id-ID");
+}
+
+function usableIdentifier(value: unknown): boolean {
+  const normalized = comparable(value);
+  return Boolean(normalized) && normalized !== "-";
+}
+
+export function findDuplicateAsset(asset: Asset, existingAssets: Asset[], batchAssets: Asset[] = []): Asset | undefined {
+  const register = usableIdentifier(asset.no_register) ? comparable(asset.no_register) : "";
+  const certificate = usableIdentifier(asset.no_sertifikat) ? comparable(asset.no_sertifikat) : "";
+  const candidates = [...existingAssets, ...batchAssets];
+  return candidates.find((candidate) => (
+    (register && comparable(candidate.no_register) === register)
+    || (certificate && comparable(candidate.no_sertifikat) === certificate)
+    || (
+      comparable(candidate.nama_barang_aset) === comparable(asset.nama_barang_aset)
+      && comparable(candidate.alamat) === comparable(asset.alamat)
+      && comparable(candidate.dinas_opd) === comparable(asset.dinas_opd)
+      && comparable(candidate.lokasi_aset) === comparable(asset.lokasi_aset)
+    )
+  ));
 }
 
 const headerAliases: Partial<Record<keyof Omit<Asset, "id">, string[]>> = {
@@ -29,9 +55,11 @@ const headerAliases: Partial<Record<keyof Omit<Asset, "id">, string[]>> = {
   nilai_perolehan: ["nilai perolehan", "nilai"],
   keterangan: ["keterangan", "catatan"],
   keterangan_di_lapangan: ["keterangan di lapangan", "keterangan lapangan"],
-  koordinat_x: ["koordinat x", "latitude", "lintang"],
-  koordinat_y: ["koordinat y", "longitude", "bujur"],
+  koordinat_x: ["koordinat x", "latitude", "lintang", "lat", "x"],
+  koordinat_y: ["koordinat y", "longitude", "bujur", "long", "lng", "lon", "y"],
 };
+
+const coordinatePairAliases = ["koordinat", "koordinat lokasi", "titik koordinat", "coordinates", "coordinate", "lat long", "latitude longitude"];
 
 function normalizeHeader(value: unknown): string {
   return String(value ?? "").trim().toLowerCase().replace(/[._-]+/g, " ").replace(/\s+/g, " ");
@@ -81,14 +109,16 @@ function cellValue(sheet: XLSX.WorkSheet, address: string): unknown {
   return sheet[address]?.v ?? "";
 }
 
-function coordinateValues(value: unknown): { x: number | null; y: number | null } {
-  const text = String(value ?? "");
-  const match = text.match(/X\s*:\s*(-?\d+(?:[.,]\d+)?)\s+Y\s*:\s*(-?\d+(?:[.,]\d+)?)/i);
-  if (!match) return { x: null, y: null };
-  return {
-    x: Number(match[1].replace(",", ".")),
-    y: Number(match[2].replace(",", ".")),
-  };
+function findCoordinatesInSheet(sheet: XLSX.WorkSheet, fallbackValue: unknown): ParsedCoordinates {
+  const fallback = parseCoordinatePair(fallbackValue);
+  if (hasValidCoordinates(fallback)) return fallback;
+
+  for (const address of Object.keys(sheet)) {
+    if (address.startsWith("!")) continue;
+    const coordinates = parseCoordinatePair(sheet[address]?.v);
+    if (hasValidCoordinates(coordinates)) return coordinates;
+  }
+  return { latitude: null, longitude: null };
 }
 
 function bufferToDataUrl(buffer: Uint8Array, extension: string): string {
@@ -125,16 +155,6 @@ function isReportSheet(sheet: XLSX.WorkSheet): boolean {
   return normalizeHeader(cellValue(sheet, "B5")) === "nama barang/aset";
 }
 
-function sameAssetDetails(left: Asset, right: Asset): boolean {
-  const keys: Array<keyof Omit<Asset, "id">> = [
-    "no", "no_register", "nama_barang_aset", "dinas_opd", "lokasi_aset", "alamat",
-    "luas_m2", "tanggal_perolehan", "hak", "tanggal_sertifikat", "no_sertifikat",
-    "penggunaan", "asal_usul", "nilai_perolehan", "keterangan", "keterangan_di_lapangan",
-    "koordinat_x", "koordinat_y",
-  ];
-  return keys.every((key) => String(left[key] ?? "").trim() === String(right[key] ?? "").trim());
-}
-
 function reportSheetPreview(
   sheet: XLSX.WorkSheet,
   sheetName: string,
@@ -146,11 +166,11 @@ function reportSheetPreview(
   const register = textValue(cellValue(sheet, "E6"), "");
   const name = textValue(cellValue(sheet, "E5"), "");
   const address = textValue(cellValue(sheet, "L7"), "");
-  const coordinates = coordinateValues(cellValue(sheet, "L16"));
+  const coordinates = findCoordinatesInSheet(sheet, cellValue(sheet, "L16"));
   const asset: Asset = {
     id: nextId + offset + 1,
     no: numberValue(cellValue(sheet, "B13")) ?? nextId + offset + 1,
-    no_register: register || nextId + offset + 1,
+    no_register: register || "-",
     nama_barang_aset: name,
     dinas_opd: textValue(cellValue(sheet, "L5")),
     lokasi_aset: textValue(cellValue(sheet, "L6")),
@@ -165,23 +185,16 @@ function reportSheetPreview(
     nilai_perolehan: numberValue(cellValue(sheet, "M13")),
     keterangan: textValue(cellValue(sheet, "N13")),
     keterangan_di_lapangan: textValue(cellValue(sheet, "L17"), ""),
-    koordinat_x: coordinates.x,
-    koordinat_y: coordinates.y,
+    koordinat_x: coordinates.latitude,
+    koordinat_y: coordinates.longitude,
   };
-  const hasIdentifier = Boolean(register || asset.no_sertifikat !== "-");
-  const identifierMatch = existingAssets.find((existing) => (
-    (register && String(existing.no_register).trim() === register)
-    || (asset.no_sertifikat !== "-" && existing.no_sertifikat === asset.no_sertifikat)
-  ));
-  const existingAsset = hasIdentifier && identifierMatch && sameAssetDetails(asset, identifierMatch)
-    ? identifierMatch
-    : undefined;
+  const identifierMatch = findDuplicateAsset(asset, existingAssets);
+  const existingAsset = identifierMatch;
   let error: string | null = null;
   let warning: string | undefined;
 
   if (!name || !address) error = "Nama aset dan alamat wajib diisi.";
-  else if (existingAsset) error = `${sheetName}: data identik sudah ada; aset tidak dibuat ulang, foto akan ditambahkan.`;
-  else if (identifierMatch) warning = `${sheetName}: register atau sertifikat sama, tetapi detail berbeda; disimpan sebagai aset terpisah.`;
+  else if (existingAsset) error = `${sheetName}: data aset sudah pernah diimpor.`;
 
   return {
     rowNumber: offset + 1,
@@ -221,12 +234,14 @@ export async function previewAssetImport(file: File, existingAssets: Asset[]): P
   const assetKeys = Object.keys(headerAliases) as Array<keyof Omit<Asset, "id">>;
   const headerCandidates = rows.map((row, rowIndex) => {
     const columns: Partial<Record<keyof Omit<Asset, "id">, number>> = {};
+    let coordinatePairColumn: number | undefined;
     row.forEach((cell, index) => {
       const header = normalizeHeader(cell);
       const key = assetKeys.find((item) => headerAliases[item]?.includes(header));
       if (key) columns[key] = index;
+      if (coordinatePairAliases.includes(header)) coordinatePairColumn = index;
     });
-    return { rowIndex, columns, score: Object.keys(columns).length };
+    return { rowIndex, columns, coordinatePairColumn, score: Object.keys(columns).length + (coordinatePairColumn === undefined ? 0 : 1) };
   }).filter((candidate) => candidate.columns.nama_barang_aset !== undefined);
   const header = headerCandidates.sort((left, right) => right.score - left.score)[0];
   if (!header || header.score < 2) {
@@ -235,8 +250,9 @@ export async function previewAssetImport(file: File, existingAssets: Asset[]): P
   const headerRow = header.rowIndex;
   const columns = header.columns;
 
-  const existingRegisters = new Set(existingAssets.map((asset) => String(asset.no_register).trim()).filter(Boolean));
+  const existingRegisters = new Set(existingAssets.map((asset) => comparable(asset.no_register)).filter(Boolean));
   const importedRegisters = new Set<string>();
+  const importedAssets: Asset[] = [];
 
   const previews = rows.slice(headerRow + 1)
     .map((row, index) => {
@@ -248,14 +264,17 @@ export async function previewAssetImport(file: File, existingAssets: Asset[]): P
       const register = textValue(getValue(row, columns, "no_register"), "");
       let error: string | null = null;
       if (!name || !address) error = "Nama aset dan alamat wajib diisi.";
-      else if (register && existingRegisters.has(register)) error = `Nomor register ${register} sudah ada.`;
-      else if (register && importedRegisters.has(register)) error = `Nomor register ${register} duplikat di file.`;
+      else if (register && existingRegisters.has(comparable(register))) error = `Nomor register ${register} sudah ada.`;
+      else if (register && importedRegisters.has(comparable(register))) error = `Nomor register ${register} duplikat di file.`;
 
       if (register) importedRegisters.add(register);
+      const coordinates = header.coordinatePairColumn === undefined
+        ? parseCoordinatePair(getValue(row, columns, "koordinat_x"), getValue(row, columns, "koordinat_y"))
+        : parseCoordinatePair(row[header.coordinatePairColumn]);
       const asset: Asset = {
         id: nextId + index + 1,
         no: numberValue(getValue(row, columns, "no")) ?? nextId + index + 1,
-        no_register: register || nextId + index + 1,
+        no_register: register || "-",
         nama_barang_aset: name,
         dinas_opd: textValue(getValue(row, columns, "dinas_opd")),
         lokasi_aset: textValue(getValue(row, columns, "lokasi_aset")),
@@ -271,9 +290,15 @@ export async function previewAssetImport(file: File, existingAssets: Asset[]): P
         nilai_perolehan: numberValue(getValue(row, columns, "nilai_perolehan")),
         keterangan: textValue(getValue(row, columns, "keterangan")),
         keterangan_di_lapangan: textValue(getValue(row, columns, "keterangan_di_lapangan"), ""),
-        koordinat_x: numberValue(getValue(row, columns, "koordinat_x")),
-        koordinat_y: numberValue(getValue(row, columns, "koordinat_y")),
+        koordinat_x: coordinates.latitude,
+        koordinat_y: coordinates.longitude,
       };
+      const duplicate = !error ? findDuplicateAsset(asset, existingAssets, importedAssets) : undefined;
+      if (duplicate) {
+        error = `${asset.nama_barang_aset}: data aset sudah pernah diimpor.`;
+      } else {
+        importedAssets.push(asset);
+      }
       return { rowNumber, asset, error, photos: [] };
     })
   return previews.filter((item): item is NonNullable<typeof item> => item !== null);

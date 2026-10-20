@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import { addAsset, loadAssets } from "@/lib/asset-storage";
 import { addDocument } from "@/lib/document-storage";
+import { findDuplicateAsset } from "@/lib/asset-import";
+import { uniquePhotos } from "@/lib/photo-utils";
+import { Asset } from "@/types/asset";
 
 const inputClass = "mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
@@ -58,7 +61,7 @@ export default function TambahAsetPage() {
     setAdditionalPhotos((current) => current.filter((_, photoIndex) => photoIndex !== index));
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const name = String(form.get("nama") ?? "").trim();
@@ -86,7 +89,7 @@ export default function TambahAsetPage() {
     const certificateNumber = String(form.get("no_sertifikat") ?? "").trim();
     const selectedCertificateStatus = String(form.get("status_sertifikat") ?? "Keterangan Lainnya");
 
-    addAsset({
+    const nextAsset: Asset = {
       id: nextAssetId,
       no: nextNumber,
       no_register: String(form.get("register") ?? "-").trim() || "-",
@@ -107,14 +110,21 @@ export default function TambahAsetPage() {
       keterangan_di_lapangan: "",
       koordinat_x: Number(form.get("latitude") ?? 0) || null,
       koordinat_y: Number(form.get("longitude") ?? 0) || null,
-    });
+    };
+    const duplicate = findDuplicateAsset(nextAsset, assets);
+    if (duplicate) {
+      setError(`Aset "${duplicate.nama_barang_aset}" sudah terdaftar dengan nomor register atau nomor sertifikat yang sama. Tidak ada data atau foto yang ditambahkan.`);
+      return;
+    }
+    const photos = await uniquePhotos([denahPhoto, ...additionalPhotos]);
+    addAsset(nextAsset);
     addDocument({
       id: `document-${nextAssetId}`,
       assetId: nextAssetId,
       title: name,
       type: "Denah & Foto Aset",
       description: `Denah lokasi dan foto pendukung untuk ${name}.`,
-      photos: [denahPhoto, ...additionalPhotos],
+      photos,
       createdAt: new Date().toISOString(),
     });
 
