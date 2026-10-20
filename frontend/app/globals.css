@@ -535,8 +535,8 @@ html.dark .asset-filter-control {
 
 .asset-map-marker__pin {
   display: block;
-  width: 32px;
-  height: 42px;
+  width: 24px;
+  height: 30px;
   transform-origin: 50% 100%;
   transition: transform 180ms ease, filter 180ms ease;
 }
@@ -545,7 +545,7 @@ html.dark .asset-filter-control {
   display: block;
   width: 100%;
   height: 100%;
-  filter: drop-shadow(0 2px 3px rgb(15 23 42 / 30%));
+  filter: drop-shadow(0 1px 2px rgb(15 23 42 / 28%));
   overflow: visible;
 }
 
@@ -553,7 +553,7 @@ html.dark .asset-filter-control {
   fill: var(--marker-color);
   stroke: #ffffff;
   stroke-linejoin: round;
-  stroke-width: 2;
+  stroke-width: 1.4;
 }
 
 .asset-map-marker__pin circle {
@@ -562,8 +562,8 @@ html.dark .asset-filter-control {
 
 .asset-map-marker:hover .asset-map-marker__pin,
 .asset-map-marker:focus .asset-map-marker__pin {
-  filter: brightness(1.05);
-  transform: scale(1.1);
+  filter: brightness(1.05) drop-shadow(0 2px 2px rgb(15 23 42 / 20%));
+  transform: scale(1.06);
 }
 
 .asset-map-popup .leaflet-popup-content {
@@ -572,12 +572,12 @@ html.dark .asset-filter-control {
 }
 
 .asset-map-popup .leaflet-popup-content-wrapper {
-  border-radius: 16px;
-  box-shadow: 0 12px 30px rgb(15 23 42 / 20%);
+  border-radius: 11px;
+  box-shadow: 0 8px 20px rgb(15 23 42 / 16%);
 }
 
 .asset-popup {
-  min-width: 280px;
+  min-width: 210px;
   padding: 4px 2px 2px;
 }
 
