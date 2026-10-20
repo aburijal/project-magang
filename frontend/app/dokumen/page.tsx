@@ -12,6 +12,14 @@ import {
 } from "@/lib/document-storage";
 import { Asset } from "@/types/asset";
 import { districts } from "@/components/map/MapFilter";
+import { getAssetStatus } from "@/lib/asset-utils";
+import {
+  acquisitionSourceOptions,
+  assetStatusOptions,
+  AssetStatusFilter,
+  AcquisitionSourceFilter,
+  matchesAcquisitionSource,
+} from "@/lib/asset-filters";
 
 interface DocumentForm {
   assetId: string;
@@ -45,8 +53,9 @@ export default function DokumenPage() {
   const [documents, setDocuments] = useState<AssetDocument[]>([]);
   const [search, setSearch] = useState("");
   const [assetFilter, setAssetFilter] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
   const [districtFilter, setDistrictFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<AssetStatusFilter>("Semua Status");
+  const [acquisitionSourceFilter, setAcquisitionSourceFilter] = useState<AcquisitionSourceFilter>("Semua Asal Usul");
   const [modal, setModal] = useState<"form" | "detail" | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<AssetDocument | null>(null);
@@ -81,13 +90,21 @@ export default function DokumenPage() {
   const filteredDocuments = documents.filter((document) => {
     const asset = assetById.get(document.assetId);
     const query = search.toLowerCase();
-    const matchesSearch = !query
-      || document.title.toLowerCase().includes(query)
-      || asset?.nama_barang_aset.toLowerCase().includes(query);
+    const searchable = [
+      document.title,
+      asset?.nama_barang_aset,
+      asset?.no,
+      asset?.no_register,
+      asset?.dinas_opd,
+      asset?.lokasi_aset,
+      asset?.alamat,
+    ].join(" ").toLowerCase();
+    const matchesSearch = !query || searchable.includes(query);
     const matchesAsset = !assetFilter || String(document.assetId) === assetFilter;
-    const matchesType = !typeFilter || document.type === typeFilter;
     const matchesDistrict = !districtFilter || asset?.lokasi_aset.toLowerCase().includes(districtFilter.toLowerCase());
-    return matchesSearch && matchesAsset && matchesType && matchesDistrict;
+    const matchesStatus = statusFilter === "Semua Status" || (asset && getAssetStatus(asset) === statusFilter);
+    const matchesAcquisition = asset ? matchesAcquisitionSource(asset, acquisitionSourceFilter) : acquisitionSourceFilter === "Semua Asal Usul";
+    return matchesSearch && matchesAsset && matchesDistrict && matchesStatus && matchesAcquisition;
   });
 
   const openUpload = () => {
@@ -197,19 +214,26 @@ export default function DokumenPage() {
         </div>
 
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-wrap gap-3 border-b border-slate-200 p-4">
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari nama dokumen atau aset..." className="min-w-[220px] flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-blue-500" />
-            <select value={assetFilter} onChange={(event) => setAssetFilter(event.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
-              <option value="">Semua Aset</option>
-              {assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.nama_barang_aset}</option>)}
+          <div className="asset-filter-bar asset-filter-bar--documents border-b border-slate-200 p-4">
+            <div className="asset-filter-search relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">⌕</span>
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari nama dokumen atau aset..." className="asset-filter-control w-full pl-8 pr-3" aria-label="Cari dokumen atau aset" />
+            </div>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as AssetStatusFilter)} className="asset-filter-control" aria-label="Filter status sertifikat">
+              <option>Semua Status</option>
+              {assetStatusOptions.map((status) => <option key={status}>{status}</option>)}
             </select>
-            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
-              <option value="">Semua Jenis</option>
-              {Array.from(new Set(documents.map((document) => document.type))).map((type) => <option key={type} value={type}>{type}</option>)}
-            </select>
-            <select value={districtFilter} onChange={(event) => setDistrictFilter(event.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
+            <select value={districtFilter} onChange={(event) => setDistrictFilter(event.target.value)} className="asset-filter-control" aria-label="Filter kecamatan">
               <option value="">Semua Kecamatan</option>
               {districts.map((district) => <option key={district} value={district}>{district}</option>)}
+            </select>
+            <select value={acquisitionSourceFilter} onChange={(event) => setAcquisitionSourceFilter(event.target.value as AcquisitionSourceFilter)} className="asset-filter-control" aria-label="Filter asal usul">
+              <option>Semua Asal Usul</option>
+              {acquisitionSourceOptions.map((source) => <option key={source}>{source}</option>)}
+            </select>
+            <select value={assetFilter} onChange={(event) => setAssetFilter(event.target.value)} className="asset-filter-control" aria-label="Filter aset">
+              <option value="">Semua Aset</option>
+              {assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.nama_barang_aset}</option>)}
             </select>
           </div>
 

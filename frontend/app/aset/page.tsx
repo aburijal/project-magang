@@ -1,7 +1,8 @@
 "use client";
 
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import { dummyAssets } from "@/data/dummy-assets";
 import { deleteAssetWithDocuments, loadAssets, saveAssets } from "@/lib/asset-storage";
@@ -9,11 +10,25 @@ import { addDocument } from "@/lib/document-storage";
 import { getAssetStatus } from "@/lib/asset-utils";
 import { Asset } from "@/types/asset";
 import { AssetImportPreview, previewAssetImport } from "@/lib/asset-import";
+import {
+  acquisitionSourceOptions,
+  assetStatusOptions,
+  AssetStatusFilter,
+  AcquisitionSourceFilter,
+  matchesAcquisitionSource,
+} from "@/lib/asset-filters";
 
-export default function AsetPage() {
+function getStatusFromQuery(value: string | null): AssetStatusFilter {
+  const normalized = value?.trim().toLowerCase().replaceAll("_", " ");
+  const match = assetStatusOptions.find((option) => option.toLowerCase() === normalized);
+  return match ?? "Semua Status";
+}
+
+function AsetContent({ initialStatus }: { initialStatus: AssetStatusFilter }) {
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("Semua Status");
+  const [status, setStatus] = useState<AssetStatusFilter>(initialStatus);
   const [district, setDistrict] = useState("Semua Kecamatan");
+  const [acquisitionSource, setAcquisitionSource] = useState<AcquisitionSourceFilter>("Semua Asal Usul");
   const [assets, setAssets] = useState<Asset[]>(dummyAssets);
   const [importPreview, setImportPreview] = useState<AssetImportPreview[] | null>(null);
   const [importError, setImportError] = useState("");
@@ -39,21 +54,20 @@ export default function AsetPage() {
     ].join(" ").toLowerCase();
     return searchable.includes(keyword) &&
       (status === "Semua Status" || getAssetStatus(asset) === status) &&
-      (district === "Semua Kecamatan" || asset.lokasi_aset === district);
-  }), [assets, search, status, district]);
+      (district === "Semua Kecamatan" || asset.lokasi_aset === district) &&
+      matchesAcquisitionSource(asset, acquisitionSource);
+  }), [assets, search, status, district, acquisitionSource]);
 
   const districts = useMemo(
     () => Array.from(new Set(assets.map((asset) => asset.lokasi_aset).filter(Boolean))).sort(),
     [assets],
   );
 
-  const certified = assets.filter((asset) => getAssetStatus(asset) === "Bersertifikat").length;
-  const totalArea = assets.reduce((total, asset) => total + (asset.luas_m2 ?? 0), 0);
-
   function resetFilters() {
     setSearch("");
     setStatus("Semua Status");
     setDistrict("Semua Kecamatan");
+    setAcquisitionSource("Semua Asal Usul");
   }
 
   function handleDelete(asset: Asset) {
@@ -131,6 +145,18 @@ export default function AsetPage() {
         </div>
         {importError && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{importError}</p>}
         {deleteError && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{deleteError}</p>}
+        <Link href="/aset" className="total-asset-card" aria-label={`Total aset: ${assets.length} bidang tanah terdaftar`}>
+          <span className="total-asset-card__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M4 19.5h16M5.5 19.5V9.75L12 5l6.5 4.75v9.75M8.5 19.5v-5h7v5M8 10.25h.01M12 10.25h.01M16 10.25h.01" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <span className="min-w-0">
+            <span className="total-asset-card__label">TOTAL ASET</span>
+            <strong className="total-asset-card__value">{assets.length.toLocaleString("id-ID")}</strong>
+            <span className="total-asset-card__description">Bidang tanah terdaftar</span>
+          </span>
+        </Link>
         {importPreview && <section className="rounded-xl border border-blue-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div><h2 className="font-semibold text-slate-900">Preview Import Excel</h2><p className="text-sm text-slate-500">{importPreview.filter((item) => !item.error).length} baris baru, {importPreview.filter((item) => item.error).length} data identik atau ditolak.</p></div>
@@ -140,31 +166,29 @@ export default function AsetPage() {
           {importPreview.length > 20 && <p className="mt-3 text-xs text-slate-500">Menampilkan 20 baris pertama. Semua baris valid tetap akan diimport.</p>}
         </section>}
 
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total aset</p><p className="mt-1 text-2xl font-bold text-slate-900">{assets.length}</p><p className="text-xs text-slate-500">bidang terdaftar</p></div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Bersertifikat</p><p className="mt-1 text-2xl font-bold text-emerald-600">{certified}</p><p className="text-xs text-slate-500">dokumen lengkap</p></div>
-          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total luas</p><p className="mt-1 text-2xl font-bold text-blue-600">{totalArea.toLocaleString("id-ID")} m²</p><p className="text-xs text-slate-500">akumulasi luas tanah</p></div>
-        </div>
-
         <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 p-5">
             <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div><h2 className="font-semibold text-slate-900">Daftar inventaris</h2><p className="text-sm text-slate-500">Gunakan pencarian untuk menemukan aset dengan cepat.</p></div>
               <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">{filteredAssets.length} data ditemukan</span>
             </div>
-            <div className="flex flex-col gap-3 md:flex-row">
-              <div className="relative flex-1">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">⌕</span>
-                <input type="text" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari nama, nomor, OPD, lokasi, atau alamat..." className="h-11 w-full rounded-lg border border-slate-300 pl-9 pr-4 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />
+            <div className="asset-filter-bar asset-filter-bar--assets">
+              <div className="asset-filter-search relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">⌕</span>
+                <input type="text" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari nama, nomor, OPD, lokasi, atau alamat..." className="asset-filter-control w-full pl-8 pr-3" aria-label="Cari aset" />
               </div>
-              <select value={status} onChange={(event) => setStatus(event.target.value)} className="h-11 rounded-lg border border-slate-300 bg-white px-4 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
-                <option>Semua Status</option><option>Bersertifikat</option><option>Belum Bersertifikat</option><option>Keterangan Lainnya</option>
+              <select value={status} onChange={(event) => setStatus(getStatusFromQuery(event.target.value))} className="asset-filter-control" aria-label="Filter status sertifikat">
+                <option>Semua Status</option>{assetStatusOptions.map((option) => <option key={option}>{option}</option>)}
               </select>
-              <select value={district} onChange={(event) => setDistrict(event.target.value)} className="h-11 rounded-lg border border-slate-300 bg-white px-4 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100">
+              <select value={district} onChange={(event) => setDistrict(event.target.value)} className="asset-filter-control" aria-label="Filter kecamatan">
                 <option>Semua Kecamatan</option>
                 {districts.map((item) => <option key={item}>{item}</option>)}
               </select>
-              {(search || status !== "Semua Status" || district !== "Semua Kecamatan") && <button type="button" onClick={resetFilters} className="h-11 rounded-lg border border-slate-300 px-4 text-sm font-medium text-slate-600 hover:bg-slate-50">Reset</button>}
+              <select value={acquisitionSource} onChange={(event) => setAcquisitionSource(event.target.value as AcquisitionSourceFilter)} className="asset-filter-control" aria-label="Filter asal usul">
+                <option>Semua Asal Usul</option>
+                {acquisitionSourceOptions.map((option) => <option key={option}>{option}</option>)}
+              </select>
+              <button type="button" onClick={resetFilters} className="asset-filter-control border-slate-300 px-3 font-medium text-slate-600 hover:bg-slate-50">Reset</button>
             </div>
           </div>
 
@@ -230,5 +254,21 @@ export default function AsetPage() {
         </section>
       </div>
     </AppLayout>
+  );
+}
+
+function AsetPageContent() {
+  const searchParams = useSearchParams();
+  const queryStatus = searchParams.get("status");
+  const initialStatus = getStatusFromQuery(queryStatus);
+
+  return <AsetContent key={`${queryStatus ?? ""}:${initialStatus}`} initialStatus={initialStatus} />;
+}
+
+export default function AsetPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-slate-500">Memuat data aset...</div>}>
+      <AsetPageContent />
+    </Suspense>
   );
 }
