@@ -1,23 +1,26 @@
+import Link from "next/link";
+
 interface StatCardProps {
   title: string;
   value: string;
   description: string;
   icon: string;
   variant: "blue" | "green" | "purple" | "orange";
+  href: string;
 }
 
 const variantStyles = {
   blue: {
-    icon: "bg-blue-50 text-blue-600",
+    icon: "stat-card__icon--blue text-blue-700",
   },
   green: {
-    icon: "bg-green-50 text-green-600",
+    icon: "stat-card__icon--green text-green-700",
   },
   purple: {
-    icon: "bg-purple-50 text-purple-600",
+    icon: "stat-card__icon--purple text-purple-700",
   },
   orange: {
-    icon: "bg-orange-50 text-orange-600",
+    icon: "stat-card__icon--orange text-orange-700",
   },
 };
 
@@ -27,11 +30,12 @@ export default function StatCard({
   description,
   icon,
   variant,
+  href,
 }: StatCardProps) {
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <Link href={href} className="stat-card flex cursor-pointer items-center gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div
-        className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl font-bold ${variantStyles[variant].icon}`}
+        className={`stat-card__icon flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-xl font-bold ${variantStyles[variant].icon}`}
       >
         {icon}
       </div>
@@ -49,6 +53,6 @@ export default function StatCard({
           {description}
         </small>
       </div>
-    </div>
+    </Link>
   );
 }
