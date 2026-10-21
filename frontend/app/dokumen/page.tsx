@@ -28,7 +28,10 @@ import {
   AcquisitionSourceFilter,
   matchesAcquisitionSource,
 } from "@/lib/asset-filters";
-import { loadAuthSession } from "@/lib/auth-storage";
+import {
+  loadAuthSession,
+  subscribeAuthSession,
+} from "@/lib/auth-storage";
 
 interface DocumentForm {
   assetId: string;
@@ -86,19 +89,18 @@ export default function DokumenPage() {
   const [isAdmin, setIsAdmin] = useState(false);
 
   // Memeriksa role saat halaman dibuka dan ketika sesi berubah di tab lain.
-  useEffect(() => {
-    const refreshRole = () => {
-      setIsAdmin(loadAuthSession()?.user.role === "admin");
-    };
+ // Memperbarui role saat login atau logout.
+useEffect(() => {
+  const refreshRole = () => {
+    setIsAdmin(loadAuthSession()?.user.role === "admin");
+  };
 
-    refreshRole();
+  refreshRole();
 
-    window.addEventListener("storage", refreshRole);
+  const unsubscribe = subscribeAuthSession(refreshRole);
 
-    return () => {
-      window.removeEventListener("storage", refreshRole);
-    };
-  }, []);
+  return unsubscribe;
+}, []);
 
   // Pemeriksaan ulang role sebelum aksi pengubahan data.
   function requireAdmin(): boolean {
@@ -396,66 +398,102 @@ export default function DokumenPage() {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-blue-600">
-              ARSIP DIGITAL
-            </p>
+       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+  <div>
+    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#315F86]">
+      Arsip Digital
+    </p>
 
-            <h1 className="mt-1 text-2xl font-bold text-slate-900">
-              Dokumen &amp; Foto Aset
-            </h1>
+    <h1 className="mt-2 text-2xl font-bold tracking-tight text-[#193B5A]">
+      Dokumen &amp; Foto Aset
+    </h1>
 
-            <p className="mt-1 text-sm text-slate-500">
-              Upload dan kelola beberapa foto pendukung setiap aset.
-            </p>
-          </div>
+    <p className="mt-2 text-sm text-slate-500">
+      Kelola foto dan dokumen pendukung setiap aset tanah.
+    </p>
+  </div>
 
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={openUpload}
-              className="ui-button-primary font-medium shadow-sm"
-            >
-              + Upload Foto
-            </button>
+  {isAdmin && (
+    <button
+      type="button"
+      onClick={openUpload}
+      className="ui-button-primary rounded-xl font-medium shadow-sm"
+    >
+      + Upload Foto
+    </button>
+  )}
+</div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <p className="text-sm font-medium text-slate-500">
+          Total Dokumen
+        </p>
+        <p className="mt-3 text-3xl font-bold text-[#193B5A]">
+          {documents.length}
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          Arsip dokumentasi tersimpan
+        </p>
+      </div>
+
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#E7EFF8] text-xl text-[#315F86]">
+        <span aria-hidden="true">▤</span>
+      </div>
+    </div>
+  </div>
+
+  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md">
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <p className="text-sm font-medium text-slate-500">
+          Total Foto
+        </p>
+        <p className="mt-3 text-3xl font-bold text-emerald-700">
+          {documents.reduce(
+            (total, document) => total + document.photos.length,
+            0,
           )}
-        </div>
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          Foto dari seluruh arsip
+        </p>
+      </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">Total dokumen</p>
-            <p className="mt-2 text-2xl font-bold text-slate-900">
-              {documents.length}
-            </p>
-          </div>
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-xl text-emerald-700">
+        <span aria-hidden="true">▧</span>
+      </div>
+    </div>
+  </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">Total foto</p>
-            <p className="mt-2 text-2xl font-bold text-blue-600">
-              {documents.reduce(
-                (total, document) => total + document.photos.length,
-                0,
-              )}
-            </p>
-          </div>
+  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md sm:col-span-2 xl:col-span-1">
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <p className="text-sm font-medium text-slate-500">
+          Aset Terdokumentasi
+        </p>
+        <p className="mt-3 text-3xl font-bold text-amber-700">
+          {
+            new Set(
+              documents.map((document) => document.assetId),
+            ).size
+          }
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          Aset yang memiliki arsip
+        </p>
+      </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">
-              Aset terdokumentasi
-            </p>
-            <p className="mt-2 text-2xl font-bold text-emerald-600">
-              {
-                new Set(
-                  documents.map((document) => document.assetId),
-                ).size
-              }
-            </p>
-          </div>
-        </div>
-
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-50 text-xl text-amber-700">
+        <span aria-hidden="true">⌂</span>
+      </div>
+    </div>
+  </div>
+</div>
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="asset-filter-bar asset-filter-bar--documents border-b border-slate-200 p-4">
+          <div className="asset-filter-bar asset-filter-bar--documents border-b border-slate-200 bg-slate-50/70 p-5">
             <div className="asset-filter-search relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
                 ⌕
@@ -465,7 +503,7 @@ export default function DokumenPage() {
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Cari nama dokumen atau aset..."
-                className="asset-filter-control w-full pl-8 pr-3"
+                className="asset-filter-control w-full rounded-xl border border-slate-200 bg-white pl-8 pr-3 shadow-sm transition focus:border-[#315F86] focus:outline-none focus:ring-2 focus:ring-[#315F86]/10"
                 aria-label="Cari dokumen atau aset"
               />
             </div>
@@ -477,7 +515,7 @@ export default function DokumenPage() {
                   event.target.value as AssetStatusFilter,
                 )
               }
-              className="asset-filter-control"
+             className="asset-filter-control rounded-xl border border-slate-200 bg-white shadow-sm transition focus:border-[#315F86] focus:outline-none focus:ring-2 focus:ring-[#315F86]/10"
               aria-label="Filter status sertifikat"
             >
               <option>Semua Status</option>
@@ -542,85 +580,138 @@ export default function DokumenPage() {
 
                 return (
                   <article
-                    key={document.id}
-                    className="overflow-hidden rounded-lg border border-slate-200 bg-white"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => openDetail(document)}
-                      className="group relative block h-44 w-full bg-slate-100 text-left"
-                      aria-label={`Lihat foto ${document.title}`}
-                    >
-                      <img
-                        src={document.photos[0]}
-                        alt={document.title}
-                        className="h-full w-full object-cover transition group-hover:scale-105"
-                      />
+  key={document.id}
+  className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg"
+>
+  <button
+    type="button"
+    onClick={() => openDetail(document)}
+    className="relative block h-52 w-full overflow-hidden bg-slate-100 text-left"
+    aria-label={`Lihat foto ${document.title}`}
+  >
+    <img
+      src={document.photos[0]}
+      alt={document.title}
+      className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+    />
 
-                      <span className="absolute bottom-2 right-2 rounded-full bg-slate-900/75 px-2.5 py-1 text-xs font-medium text-white">
-                        {document.photos.length} foto
-                      </span>
-                    </button>
+    <span className="absolute left-3 top-3 rounded-lg bg-white/95 px-3 py-1.5 text-xs font-semibold text-[#193B5A] shadow-sm">
+      {document.type}
+    </span>
 
-                    <div className="p-4">
-                      <h2 className="font-semibold text-slate-900">
-                        {document.title}
-                      </h2>
+    <span className="absolute bottom-3 right-3 rounded-lg bg-[#193B5A]/90 px-3 py-1.5 text-xs font-semibold text-white shadow-sm">
+      {document.photos.length} foto
+    </span>
+  </button>
 
-                      <p className="mt-1 text-xs text-slate-500">
-                        Dinas/OPD: {asset?.dinas_opd ?? "-"}
-                      </p>
+  <div className="p-5">
+    <h2 className="line-clamp-2 min-h-12 text-base font-bold leading-6 text-[#193B5A]">
+      {document.title}
+    </h2>
 
-                      <p className="mt-2 text-xs text-slate-500">
-                        Penggunaan: {asset?.penggunaan ?? "-"}
-                      </p>
+    <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+      <div className="flex items-start gap-2 text-sm">
+        <span className="mt-0.5 text-[#315F86]" aria-hidden="true">
+          ▤
+        </span>
+        <div className="min-w-0">
+          <p className="text-xs text-slate-400">Dinas / OPD</p>
+          <p className="break-words font-medium text-slate-700">
+            {asset?.dinas_opd ?? "-"}
+          </p>
+        </div>
+      </div>
 
-                      <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium">
-                        <button
-                          type="button"
-                          onClick={() => openDetail(document)}
-                          className="rounded bg-blue-50 px-2.5 py-1.5 text-blue-700 hover:bg-blue-100"
-                        >
-                          Lihat detail
-                        </button>
+      <div className="flex items-start gap-2 text-sm">
+        <span className="mt-0.5 text-[#315F86]" aria-hidden="true">
+          ⌂
+        </span>
+        <div className="min-w-0">
+          <p className="text-xs text-slate-400">Penggunaan aset</p>
+          <p className="break-words font-medium text-slate-700">
+            {asset?.penggunaan ?? "-"}
+          </p>
+        </div>
+      </div>
+    </div>
 
-                        {isAdmin && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => openEdit(document)}
-                              className="rounded bg-slate-100 px-2.5 py-1.5 text-slate-700 hover:bg-slate-200"
-                            >
-                              Edit
-                            </button>
+    <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+      <button
+        type="button"
+        onClick={() => openDetail(document)}
+        className="rounded-lg bg-[#193B5A] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#315F86]"
+      >
+        Lihat Detail
+      </button>
 
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(document)}
-                              className="rounded bg-red-50 px-2.5 py-1.5 text-red-600 hover:bg-red-100"
-                            >
-                              Hapus
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </article>
+      {isAdmin && (
+        <>
+          <button
+            type="button"
+            onClick={() => openEdit(document)}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            Edit
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleDelete(document)}
+            className="rounded-lg border border-red-100 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+          >
+            Hapus
+          </button>
+        </>
+      )}
+    </div>
+  </div>
+</article>
                 );
               })}
             </div>
           ) : (
-            <div className="p-12 text-center">
-              <p className="font-medium text-slate-700">
-                Belum ada foto aset.
-              </p>
+           <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#E7EFF8] text-3xl text-[#315F86]">
+    <span aria-hidden="true">▤</span>
+  </div>
 
-              <p className="mt-1 text-sm text-slate-500">
-                {isAdmin
-                  ? "Klik Upload Foto untuk menambahkan satu atau beberapa foto."
-                  : "Belum ada dokumen foto yang tersedia."}
-              </p>
-            </div>
+  <h2 className="mt-5 text-lg font-bold text-[#193B5A]">
+    {search ||
+    assetFilter ||
+    districtFilter ||
+    statusFilter !== "Semua Status" ||
+    acquisitionSourceFilter !== "Semua Asal Usul"
+      ? "Dokumen tidak ditemukan"
+      : "Belum ada dokumen aset"}
+  </h2>
+
+  <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
+    {search ||
+    assetFilter ||
+    districtFilter ||
+    statusFilter !== "Semua Status" ||
+    acquisitionSourceFilter !== "Semua Asal Usul"
+      ? "Coba ubah kata kunci atau filter untuk menemukan dokumen yang sesuai."
+      : isAdmin
+        ? "Klik tombol Upload Foto untuk menambahkan dokumentasi aset tanah."
+        : "Dokumen dan foto aset belum tersedia."}
+  </p>
+
+  {isAdmin &&
+    !search &&
+    !assetFilter &&
+    !districtFilter &&
+    statusFilter === "Semua Status" &&
+    acquisitionSourceFilter === "Semua Asal Usul" && (
+      <button
+        type="button"
+        onClick={openUpload}
+        className="ui-button-primary mt-5 rounded-xl font-medium"
+      >
+        + Upload Foto
+      </button>
+    )}
+</div>
           )}
         </div>
       </div>
@@ -629,11 +720,11 @@ export default function DokumenPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
           <form
             onSubmit={handleSubmit}
-            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8"
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">
+                <h2 className="text-xl font-bold tracking-tight text-[#193B5A]">
                   {editingId ? "Edit Dokumen Foto" : "Upload Foto Aset"}
                 </h2>
 
@@ -725,7 +816,7 @@ export default function DokumenPage() {
               />
             </label>
 
-            <label className="mt-4 block cursor-pointer rounded-lg border-2 border-dashed border-blue-200 bg-blue-50/50 p-5 text-center text-sm text-blue-700 hover:bg-blue-50">
+           <label className="mt-4 block cursor-pointer rounded-2xl border-2 border-dashed border-[#B8CDE0] bg-[#F4F8FC] p-6 text-center text-sm text-[#315F86] transition hover:border-[#315F86] hover:bg-[#E7EFF8]">
               <span className="font-semibold">
                 {isReadingFiles ? "Membaca foto..." : "Pilih foto"}
               </span>
@@ -800,10 +891,10 @@ export default function DokumenPage() {
 
       {modal === "detail" && selectedDocument && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl sm:p-8">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">
+                <h2 className="text-xl font-bold tracking-tight text-[#193B5A]">
                   {selectedDocument.title}
                 </h2>
 
@@ -836,7 +927,7 @@ export default function DokumenPage() {
               {selectedDocument.photos.map((photo, index) => (
                 <figure
                   key={`${photo.slice(0, 20)}-${index}`}
-                  className="overflow-hidden rounded-lg border border-slate-200"
+                 className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md"
                 >
                   <img
                     src={photo}
