@@ -1,15 +1,28 @@
+
 "use client";
 
 import { ChangeEvent, Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import { dummyAssets } from "@/data/dummy-assets";
-import { deleteAssetWithDocuments, loadAssets, saveAssets } from "@/lib/asset-storage";
-import { AssetDocument, loadDocuments, saveDocuments } from "@/lib/document-storage";
+import {
+  deleteAssetWithDocuments,
+  loadAssets,
+  saveAssets,
+} from "@/lib/asset-storage";
+import {
+  AssetDocument,
+  loadDocuments,
+  saveDocuments,
+} from "@/lib/document-storage";
 import { getAssetStatus } from "@/lib/asset-utils";
 import { Asset } from "@/types/asset";
-import { AssetImportPreview, findDuplicateAsset, previewAssetImport } from "@/lib/asset-import";
+import {
+  AssetImportPreview,
+  findDuplicateAsset,
+  previewAssetImport,
+} from "@/lib/asset-import";
 import { uniquePhotos, photoFingerprint } from "@/lib/photo-utils";
 import {
   acquisitionSourceOptions,
@@ -18,48 +31,125 @@ import {
   AcquisitionSourceFilter,
   matchesAcquisitionSource,
 } from "@/lib/asset-filters";
+import { loadAuthSession, AuthSession } from "@/lib/auth-storage";
 
 function getStatusFromQuery(value: string | null): AssetStatusFilter {
   const normalized = value?.trim().toLowerCase().replaceAll("_", " ");
-  const match = assetStatusOptions.find((option) => option.toLowerCase() === normalized);
+  const match = assetStatusOptions.find(
+    (option) => option.toLowerCase() === normalized,
+  );
+
   return match ?? "Semua Status";
 }
 
-function AsetContent({ initialStatus }: { initialStatus: AssetStatusFilter }) {
+function AsetContent({
+  initialStatus,
+}: {
+  initialStatus: AssetStatusFilter;
+}) {
+  const router = useRouter();
+
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<AssetStatusFilter>(initialStatus);
+  const [status, setStatus] =
+    useState<AssetStatusFilter>(initialStatus);
   const [district, setDistrict] = useState("Semua Kecamatan");
-  const [acquisitionSource, setAcquisitionSource] = useState<AcquisitionSourceFilter>("Semua Asal Usul");
+  const [acquisitionSource, setAcquisitionSource] =
+    useState<AcquisitionSourceFilter>("Semua Asal Usul");
   const [assets, setAssets] = useState<Asset[]>(dummyAssets);
-  const [importPreview, setImportPreview] = useState<AssetImportPreview[] | null>(null);
+  const [importPreview, setImportPreview] =
+    useState<AssetImportPreview[] | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const [isReadingImport, setIsReadingImport] = useState(false);
+  const [session, setSession] = useState<AuthSession | null>(null);
 
+  // Memuat sesi login dan memperbaruinya saat storage berubah.
   useEffect(() => {
-    const refresh = () => setAssets(loadAssets());
-    refresh();
-    window.addEventListener("assets-updated", refresh);
-    return () => window.removeEventListener("assets-updated", refresh);
+    const refreshSession = () => {
+      setSession(loadAuthSession());
+    };
+
+    refreshSession();
+
+    window.addEventListener("storage", refreshSession);
+
+    return () => {
+      window.removeEventListener("storage", refreshSession);
+    };
   }, []);
 
-  const filteredAssets = useMemo(() => assets.filter((asset) => {
-    const keyword = search.trim().toLowerCase();
-    const searchable = [
-      asset.nama_barang_aset,
-      asset.no,
-      asset.no_register,
-      asset.dinas_opd,
-      asset.lokasi_aset,
-      asset.alamat,
-    ].join(" ").toLowerCase();
-    return searchable.includes(keyword) &&
-      (status === "Semua Status" || getAssetStatus(asset) === status) &&
-      (district === "Semua Kecamatan" || asset.lokasi_aset === district) &&
-      matchesAcquisitionSource(asset, acquisitionSource);
-  }), [assets, search, status, district, acquisitionSource]);
+  const isAdmin = session?.user.role === "admin";
+
+  // Pemeriksaan akses sebelum aksi yang mengubah data.
+  function requireAdmin(): boolean {
+    const currentSession = loadAuthSession();
+
+    if (!currentSession) {
+      router.push("/login");
+      return false;
+    }
+
+    if (currentSession.user.role !== "admin") {
+      window.alert(
+        "Akses ditolak. Hanya admin yang boleh mengubah data.",
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  // Memuat data aset dari penyimpanan lokal.
+  useEffect(() => {
+    const refreshAssets = () => {
+      setAssets(loadAssets());
+    };
+
+    refreshAssets();
+
+    window.addEventListener("assets-updated", refreshAssets);
+
+    return () => {
+      window.removeEventListener("assets-updated", refreshAssets);
+    };
+  }, []);
+
+  const filteredAssets = useMemo(
+    () =>
+      assets.filter((asset) => {
+        const keyword = search.trim().toLowerCase();
+
+        const searchable = [
+          asset.nama_barang_aset,
+          asset.no,
+          asset.no_register,
+          asset.dinas_opd,
+          asset.lokasi_aset,
+          asset.alamat,
+        ]
+          .join(" ")
+          .toLowerCase();
+
+        return (
+          searchable.includes(keyword) &&
+          (status === "Semua Status" ||
+            getAssetStatus(asset) === status) &&
+          (district === "Semua Kecamatan" ||
+            asset.lokasi_aset === district) &&
+          matchesAcquisitionSource(asset, acquisitionSource)
+        );
+      }),
+    [assets, search, status, district, acquisitionSource],
+  );
 
   const districts = useMemo(
-    () => Array.from(new Set(assets.map((asset) => asset.lokasi_aset).filter(Boolean))).sort(),
+    () =>
+      Array.from(
+        new Set(
+          assets
+            .map((asset) => asset.lokasi_aset)
+            .filter(Boolean),
+        ),
+      ).sort(),
     [assets],
   );
 
@@ -71,77 +161,133 @@ function AsetContent({ initialStatus }: { initialStatus: AssetStatusFilter }) {
   }
 
   function handleDelete(asset: Asset) {
+    if (!requireAdmin()) return;
+
     const confirmed = window.confirm(
       `Hapus aset "${asset.nama_barang_aset}" dari katalog?`,
     );
+
     if (!confirmed) return;
 
     setDeleteError("");
+
     try {
       deleteAssetWithDocuments(asset.id);
       setAssets(loadAssets());
     } catch (error) {
-      setDeleteError(error instanceof Error ? error.message : "Aset dan dokumen terkait tidak dapat dihapus.");
+      setDeleteError(
+        error instanceof Error
+          ? error.message
+          : "Aset dan dokumen terkait tidak dapat dihapus.",
+      );
     }
   }
 
-  async function handleImportFile(event: ChangeEvent<HTMLInputElement>) {
+  async function handleImportFile(
+    event: ChangeEvent<HTMLInputElement>,
+  ) {
+    if (!requireAdmin()) {
+      event.target.value = "";
+      return;
+    }
+
     const file = event.target.files?.[0];
     event.target.value = "";
+
     if (!file) return;
+
     setIsReadingImport(true);
+
     try {
       setImportPreview(await previewAssetImport(file, loadAssets()));
     } catch (error) {
-      setImportPreview([{
-        rowNumber: 0,
-        asset: null,
-        error: error instanceof Error ? error.message : "File Excel tidak dapat dibaca.",
-        photos: [],
-      }]);
+      setImportPreview([
+        {
+          rowNumber: 0,
+          asset: null,
+          error:
+            error instanceof Error
+              ? error.message
+              : "File Excel tidak dapat dibaca.",
+          photos: [],
+        },
+      ]);
     } finally {
       setIsReadingImport(false);
     }
   }
 
   async function confirmImport() {
+    if (!requireAdmin()) return;
     if (!importPreview) return;
-    const validationErrors = importPreview.filter((item) => item.error || !item.asset);
-    if (validationErrors.length) {
-      return;
-    }
+
+    // Tolak seluruh proses jika preview memiliki data tidak valid.
+    const validationErrors = importPreview.filter(
+      (item) => item.error || !item.asset,
+    );
+
+    if (validationErrors.length) return;
 
     const currentAssets = loadAssets();
+
+    // Tolak seluruh import jika terdapat aset duplikat.
     const duplicate = importPreview
       .map((item) => item.asset)
       .filter((asset): asset is Asset => Boolean(asset))
       .find((asset) => findDuplicateAsset(asset, currentAssets));
+
     if (duplicate) {
+      setImportPreview((current) =>
+        current?.map((item, index) =>
+          index === 0
+            ? {
+                ...item,
+                error:
+                  "Data aset sudah pernah diimpor. Seluruh proses import dibatalkan.",
+              }
+            : item,
+        ) ?? null,
+      );
       return;
     }
 
     try {
-      const validAssets = importPreview.map((item) => item.asset as Asset);
+      const validAssets = importPreview.map(
+        (item) => item.asset as Asset,
+      );
+
       const currentDocuments = loadDocuments();
       const importedDocuments: AssetDocument[] = [];
       const existingPhotoHashes = new Map<number, Set<string>>();
+
       for (const document of currentDocuments) {
-        const hashes = existingPhotoHashes.get(document.assetId) ?? new Set<string>();
-        for (const photo of document.photos) hashes.add(await photoFingerprint(photo));
+        const hashes =
+          existingPhotoHashes.get(document.assetId) ?? new Set<string>();
+
+        for (const photo of document.photos) {
+          hashes.add(await photoFingerprint(photo));
+        }
+
         existingPhotoHashes.set(document.assetId, hashes);
       }
 
       for (const item of importPreview) {
         if (!item.asset || !item.photos.length) continue;
+
         const photos = await uniquePhotos(item.photos);
-        const hashes = existingPhotoHashes.get(item.asset.id) ?? new Set<string>();
+        const hashes =
+          existingPhotoHashes.get(item.asset.id) ?? new Set<string>();
         const newPhotos: string[] = [];
+
         for (const photo of photos) {
           const hash = await photoFingerprint(photo);
+
           if (hashes.has(hash)) continue;
+
           hashes.add(hash);
           newPhotos.push(photo);
         }
+
         if (newPhotos.length) {
           importedDocuments.push({
             id: `import-${item.asset.id}-${Date.now()}-${importedDocuments.length}`,
@@ -155,26 +301,57 @@ function AsetContent({ initialStatus }: { initialStatus: AssetStatusFilter }) {
         }
       }
 
-      const previousAssets = window.localStorage.getItem("lhokseumawe-assets");
-      const previousDocuments = window.localStorage.getItem("lhokseumawe-asset-documents");
+      // Simpan nilai sebelumnya agar bisa dipulihkan jika penyimpanan gagal.
+      const previousAssets = window.localStorage.getItem(
+        "lhokseumawe-assets",
+      );
+      const previousDocuments = window.localStorage.getItem(
+        "lhokseumawe-asset-documents",
+      );
+
       try {
         saveAssets([...currentAssets, ...validAssets]);
         saveDocuments([...importedDocuments, ...currentDocuments]);
       } catch (error) {
-        if (previousAssets === null) window.localStorage.removeItem("lhokseumawe-assets");
-        else window.localStorage.setItem("lhokseumawe-assets", previousAssets);
-        if (previousDocuments === null) window.localStorage.removeItem("lhokseumawe-asset-documents");
-        else window.localStorage.setItem("lhokseumawe-asset-documents", previousDocuments);
+        if (previousAssets === null) {
+          window.localStorage.removeItem("lhokseumawe-assets");
+        } else {
+          window.localStorage.setItem(
+            "lhokseumawe-assets",
+            previousAssets,
+          );
+        }
+
+        if (previousDocuments === null) {
+          window.localStorage.removeItem(
+            "lhokseumawe-asset-documents",
+          );
+        } else {
+          window.localStorage.setItem(
+            "lhokseumawe-asset-documents",
+            previousDocuments,
+          );
+        }
+
         throw error;
       }
+
       setAssets(loadAssets());
       setImportPreview(null);
     } catch (error) {
-      setImportPreview((current) => current?.map((item, index) => (
-        index === 0
-          ? { ...item, error: error instanceof Error ? error.message : "Data tidak dapat disimpan." }
-          : item
-      )) ?? null);
+      setImportPreview((current) =>
+        current?.map((item, index) =>
+          index === 0
+            ? {
+                ...item,
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : "Data tidak dapat disimpan.",
+              }
+            : item,
+        ) ?? null,
+      );
     }
   }
 
@@ -183,65 +360,245 @@ function AsetContent({ initialStatus }: { initialStatus: AssetStatusFilter }) {
       <div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">Katalog inventaris</p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-900">Data Aset Tanah</h1>
-            <p className="mt-1 text-sm text-slate-500">Kelola dan pantau seluruh aset tanah pemerintah daerah.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
+              Katalog inventaris
+            </p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-900">
+              Data Aset Tanah
+            </h1>
+            <p className="mt-1 text-sm text-slate-500">
+              Kelola dan pantau seluruh aset tanah pemerintah daerah.
+            </p>
           </div>
+
           <div className="flex flex-col gap-2 sm:flex-row">
-            <label className="ui-button ui-button-outline cursor-pointer border-blue-200 bg-blue-50 font-semibold text-blue-700 shadow-sm hover:bg-blue-100">
-              {isReadingImport ? "Membaca Excel..." : "Import File Excel"}
-              <input type="file" accept=".xlsx,.xls,.csv" onChange={handleImportFile} disabled={isReadingImport} className="hidden" />
-            </label>
-            <Link href="/aset/tambah" className="ui-button ui-button-primary font-semibold shadow-sm">
-              + Tambah Aset
-            </Link>
+            {isAdmin && (
+              <>
+                <label className="ui-button ui-button-outline cursor-pointer border-blue-200 bg-blue-50 font-semibold text-blue-700 shadow-sm hover:bg-blue-100">
+                  {isReadingImport
+                    ? "Membaca Excel..."
+                    : "Import File Excel"}
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    onChange={handleImportFile}
+                    disabled={isReadingImport}
+                    className="hidden"
+                  />
+                </label>
+
+                <Link
+                  href="/aset/tambah"
+                  className="ui-button ui-button-primary font-semibold shadow-sm"
+                >
+                  + Tambah Aset
+                </Link>
+              </>
+            )}
           </div>
         </div>
-        {deleteError && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{deleteError}</p>}
-        <Link href="/aset" className="total-asset-card" aria-label={`Total aset: ${assets.length} bidang tanah terdaftar`}>
+
+        {deleteError && (
+          <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+            {deleteError}
+          </p>
+        )}
+
+        <Link
+          href="/aset"
+          className="total-asset-card"
+          aria-label={`Total aset: ${assets.length} bidang tanah terdaftar`}
+        >
           <span className="total-asset-card__icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M4 19.5h16M5.5 19.5V9.75L12 5l6.5 4.75v9.75M8.5 19.5v-5h7v5M8 10.25h.01M12 10.25h.01M16 10.25h.01" strokeLinecap="round" strokeLinejoin="round" />
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+            >
+              <path
+                d="M4 19.5h16M5.5 19.5V9.75L12 5l6.5 4.75v9.75M8.5 19.5v-5h7v5M8 10.25h.01M12 10.25h.01M16 10.25h.01"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </span>
+
           <span className="min-w-0">
             <span className="total-asset-card__label">TOTAL ASET</span>
-            <strong className="total-asset-card__value">{assets.length.toLocaleString("id-ID")}</strong>
-            <span className="total-asset-card__description">Bidang tanah terdaftar</span>
+            <strong className="total-asset-card__value">
+              {assets.length.toLocaleString("id-ID")}
+            </strong>
+            <span className="total-asset-card__description">
+              Bidang tanah terdaftar
+            </span>
           </span>
         </Link>
-        {importPreview && <section className="rounded-xl border border-blue-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div><h2 className="font-semibold text-slate-900">Preview Import Excel</h2><p className="text-sm text-slate-500">{importPreview.filter((item) => !item.error).length} baris baru, {importPreview.filter((item) => item.error).length} data identik atau ditolak.</p></div>
-            <div className="flex gap-2"><button type="button" onClick={() => setImportPreview(null)} className="ui-button-secondary font-medium">Batal</button><button type="button" onClick={confirmImport} className="ui-button-primary font-medium">Tambahkan Data Valid</button></div>
-          </div>
-          <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[700px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-3 py-2">Baris</th><th className="px-3 py-2">Nama aset</th><th className="px-3 py-2">Register</th><th className="px-3 py-2">Alamat</th><th className="px-3 py-2">Status</th></tr></thead><tbody className="divide-y divide-slate-100">{importPreview.slice(0, 20).map((item) => <tr key={item.rowNumber}><td className="px-3 py-2 text-slate-500">{item.rowNumber || "-"}</td><td className="px-3 py-2 font-medium text-slate-800">{item.asset?.nama_barang_aset || "-"}</td><td className="px-3 py-2 text-slate-600">{item.asset?.no_register || "-"}</td><td className="px-3 py-2 text-slate-600">{item.asset?.alamat || "-"}</td><td className={`px-3 py-2 text-xs font-medium ${item.error ? "text-red-600" : item.warning ? "text-amber-600" : "text-emerald-600"}`}>{item.error || item.warning || "Siap diimport"}</td></tr>)}</tbody></table></div>
-          {importPreview.length > 20 && <p className="mt-3 text-xs text-slate-500">Menampilkan 20 baris pertama. Semua baris valid tetap akan diimport.</p>}
-        </section>}
+
+        {isAdmin && importPreview && (
+          <section className="rounded-xl border border-blue-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-semibold text-slate-900">
+                  Preview Import Excel
+                </h2>
+                <p className="text-sm text-slate-500">
+                  {importPreview.filter((item) => !item.error).length} baris
+                  baru, {importPreview.filter((item) => item.error).length}{" "}
+                  data identik atau ditolak.
+                </p>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setImportPreview(null)}
+                  className="ui-button-secondary font-medium"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmImport}
+                  className="ui-button-primary font-medium"
+                >
+                  Tambahkan Data Valid
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full min-w-[700px] text-left text-sm">
+                <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2">Baris</th>
+                    <th className="px-3 py-2">Nama aset</th>
+                    <th className="px-3 py-2">Register</th>
+                    <th className="px-3 py-2">Alamat</th>
+                    <th className="px-3 py-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {importPreview.slice(0, 20).map((item) => (
+                    <tr key={item.rowNumber}>
+                      <td className="px-3 py-2 text-slate-500">
+                        {item.rowNumber || "-"}
+                      </td>
+                      <td className="px-3 py-2 font-medium text-slate-800">
+                        {item.asset?.nama_barang_aset || "-"}
+                      </td>
+                      <td className="px-3 py-2 text-slate-600">
+                        {item.asset?.no_register || "-"}
+                      </td>
+                      <td className="px-3 py-2 text-slate-600">
+                        {item.asset?.alamat || "-"}
+                      </td>
+                      <td
+                        className={`px-3 py-2 text-xs font-medium ${
+                          item.error
+                            ? "text-red-600"
+                            : item.warning
+                              ? "text-amber-600"
+                              : "text-emerald-600"
+                        }`}
+                      >
+                        {item.error || item.warning || "Siap diimport"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {importPreview.length > 20 && (
+              <p className="mt-3 text-xs text-slate-500">
+                Menampilkan 20 baris pertama. Semua baris valid tetap akan
+                diimport.
+              </p>
+            )}
+          </section>
+        )}
 
         <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 p-5">
             <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-              <div><h2 className="font-semibold text-slate-900">Daftar inventaris</h2><p className="text-sm text-slate-500">Gunakan pencarian untuk menemukan aset dengan cepat.</p></div>
-              <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">{filteredAssets.length} data ditemukan</span>
+              <div>
+                <h2 className="font-semibold text-slate-900">
+                  Daftar inventaris
+                </h2>
+                <p className="text-sm text-slate-500">
+                  Gunakan pencarian untuk menemukan aset dengan cepat.
+                </p>
+              </div>
+              <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
+                {filteredAssets.length} data ditemukan
+              </span>
             </div>
+
             <div className="asset-filter-bar asset-filter-bar--assets">
               <div className="asset-filter-search relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">⌕</span>
-                <input type="text" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari nama, nomor, OPD, lokasi, atau alamat..." className="asset-filter-control w-full pl-8 pr-3" aria-label="Cari aset" />
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+                  ⌕
+                </span>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Cari nama, nomor, OPD, lokasi, atau alamat..."
+                  className="asset-filter-control w-full pl-8 pr-3"
+                  aria-label="Cari aset"
+                />
               </div>
-              <select value={status} onChange={(event) => setStatus(getStatusFromQuery(event.target.value))} className="asset-filter-control" aria-label="Filter status sertifikat">
-                <option>Semua Status</option>{assetStatusOptions.map((option) => <option key={option}>{option}</option>)}
+
+              <select
+                value={status}
+                onChange={(event) =>
+                  setStatus(getStatusFromQuery(event.target.value))
+                }
+                className="asset-filter-control"
+                aria-label="Filter status sertifikat"
+              >
+                <option>Semua Status</option>
+                {assetStatusOptions.map((option) => (
+                  <option key={option}>{option}</option>
+                ))}
               </select>
-              <select value={district} onChange={(event) => setDistrict(event.target.value)} className="asset-filter-control" aria-label="Filter kecamatan">
+
+              <select
+                value={district}
+                onChange={(event) => setDistrict(event.target.value)}
+                className="asset-filter-control"
+                aria-label="Filter kecamatan"
+              >
                 <option>Semua Kecamatan</option>
-                {districts.map((item) => <option key={item}>{item}</option>)}
+                {districts.map((item) => (
+                  <option key={item}>{item}</option>
+                ))}
               </select>
-              <select value={acquisitionSource} onChange={(event) => setAcquisitionSource(event.target.value as AcquisitionSourceFilter)} className="asset-filter-control" aria-label="Filter asal usul">
+
+              <select
+                value={acquisitionSource}
+                onChange={(event) =>
+                  setAcquisitionSource(
+                    event.target.value as AcquisitionSourceFilter,
+                  )
+                }
+                className="asset-filter-control"
+                aria-label="Filter asal usul"
+              >
                 <option>Semua Asal Usul</option>
-                {acquisitionSourceOptions.map((option) => <option key={option}>{option}</option>)}
+                {acquisitionSourceOptions.map((option) => (
+                  <option key={option}>{option}</option>
+                ))}
               </select>
-              <button type="button" onClick={resetFilters} className="asset-filter-control border-slate-300 px-3 font-medium text-slate-600 hover:bg-slate-50">Reset</button>
+
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="asset-filter-control border-slate-300 px-3 font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Reset
+              </button>
             </div>
           </div>
 
@@ -253,55 +610,158 @@ function AsetContent({ initialStatus }: { initialStatus: AssetStatusFilter }) {
                   <th className="px-5 py-4 font-semibold">Aset</th>
                   <th className="px-5 py-4 font-semibold">Lokasi</th>
                   <th className="px-5 py-4 font-semibold">OPD</th>
-                  <th className="px-5 py-4 text-right font-semibold">Luas</th>
+                  <th className="px-5 py-4 text-right font-semibold">
+                    Luas
+                  </th>
                   <th className="px-5 py-4 font-semibold">Sertifikat</th>
-                  <th className="px-5 py-4 font-semibold">Nilai perolehan</th>
-                  <th className="px-5 py-4 text-center font-semibold">Aksi</th>
+                  <th className="px-5 py-4 font-semibold">
+                    Nilai perolehan
+                  </th>
+                  <th className="px-5 py-4 text-center font-semibold">
+                    Aksi
+                  </th>
                 </tr>
               </thead>
+
               <tbody className="divide-y divide-slate-100">
                 {filteredAssets.map((asset) => {
                   const assetStatus = getAssetStatus(asset);
-                  const statusBadgeClass = assetStatus === "Bersertifikat"
-                    ? "bg-emerald-50 text-emerald-700"
-                    : assetStatus === "Belum Bersertifikat"
-                      ? "bg-orange-50 text-orange-700"
-                      : "bg-blue-50 text-blue-700";
+
+                  const statusBadgeClass =
+                    assetStatus === "Bersertifikat"
+                      ? "bg-emerald-50 text-emerald-700"
+                      : assetStatus === "Belum Bersertifikat"
+                        ? "bg-orange-50 text-orange-700"
+                        : "bg-blue-50 text-blue-700";
+
                   return (
-                    <tr key={asset.id} className="transition hover:bg-blue-50/40">
-                      <td className="px-5 py-4 align-top font-medium text-slate-500">{asset.no}</td>
+                    <tr
+                      key={asset.id}
+                      className="transition hover:bg-blue-50/40"
+                    >
+                      <td className="px-5 py-4 align-top font-medium text-slate-500">
+                        {asset.no}
+                      </td>
+
                       <td className="max-w-[280px] px-5 py-4 align-top">
-                        <p className="font-semibold text-slate-900">{asset.nama_barang_aset}</p>
-                        <p className="mt-1 text-xs text-slate-500">Register: {asset.no_register}</p>
-                        <p className="mt-1 line-clamp-1 text-xs text-slate-500">{asset.penggunaan}</p>
+                        <p className="font-semibold text-slate-900">
+                          {asset.nama_barang_aset}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Register: {asset.no_register}
+                        </p>
+                        <p className="mt-1 line-clamp-1 text-xs text-slate-500">
+                          {asset.penggunaan}
+                        </p>
                       </td>
+
                       <td className="max-w-[220px] px-5 py-4 align-top">
-                        <p className="font-medium text-slate-700">{asset.lokasi_aset.replace(/^Kecamatan\s+/i, "")}</p>
-                        <p className="mt-1 text-xs text-slate-500">{asset.alamat}</p>
+                        <p className="font-medium text-slate-700">
+                          {asset.lokasi_aset.replace(
+                            /^Kecamatan\s+/i,
+                            "",
+                          )}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {asset.alamat}
+                        </p>
                       </td>
-                      <td className="max-w-[170px] px-5 py-4 align-top text-slate-600">{asset.dinas_opd}</td>
-                      <td className="px-5 py-4 text-right align-top font-medium text-slate-700">{asset.luas_m2 !== null ? `${asset.luas_m2.toLocaleString("id-ID")} m²` : "-"}</td>
+
+                      <td className="max-w-[170px] px-5 py-4 align-top text-slate-600">
+                        {asset.dinas_opd}
+                      </td>
+
+                      <td className="px-5 py-4 text-right align-top font-medium text-slate-700">
+                        {asset.luas_m2 !== null
+                          ? `${asset.luas_m2.toLocaleString("id-ID")} m²`
+                          : "-"}
+                      </td>
+
                       <td className="px-5 py-4 align-top">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadgeClass}`}>{assetStatus}</span>
-                        <p className="mt-2 text-xs text-slate-500">{asset.no_sertifikat === "-" ? "Dokumen belum tersedia" : asset.no_sertifikat}</p>
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusBadgeClass}`}
+                        >
+                          {assetStatus}
+                        </span>
+                        <p className="mt-2 text-xs text-slate-500">
+                          {asset.no_sertifikat === "-"
+                            ? "Dokumen belum tersedia"
+                            : asset.no_sertifikat}
+                        </p>
                       </td>
-                      <td className="whitespace-nowrap px-5 py-4 align-top text-slate-700">{asset.nilai_perolehan !== null ? `Rp ${asset.nilai_perolehan.toLocaleString("id-ID")}` : "-"}</td>
+
+                      <td className="whitespace-nowrap px-5 py-4 align-top text-slate-700">
+                        {asset.nilai_perolehan !== null
+                          ? `Rp ${asset.nilai_perolehan.toLocaleString("id-ID")}`
+                          : "-"}
+                      </td>
+
                       <td className="px-5 py-4 align-top">
                         <div className="flex justify-center gap-2">
-                          <Link href={`/aset/${asset.id}`} className="ui-button ui-button-secondary text-xs font-medium">Detail</Link>
-                          <Link href={`/aset/${asset.id}/edit`} className="ui-button ui-button-outline text-xs font-medium text-blue-600">Edit</Link>
-                          <button type="button" onClick={() => handleDelete(asset)} className="ui-button-danger text-xs font-medium">Hapus</button>
+                          <Link
+                            href={`/aset/${asset.id}`}
+                            className="ui-button ui-button-secondary text-xs font-medium"
+                          >
+                            Detail
+                          </Link>
+
+                          {isAdmin && (
+                            <>
+                              <Link
+                                href={`/aset/${asset.id}/edit`}
+                                className="ui-button ui-button-outline text-xs font-medium text-blue-600"
+                              >
+                                Edit
+                              </Link>
+
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(asset)}
+                                className="ui-button-danger text-xs font-medium"
+                              >
+                                Hapus
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
                   );
                 })}
-                {filteredAssets.length === 0 && <tr><td colSpan={8} className="px-5 py-14 text-center"><p className="font-medium text-slate-700">Data aset tidak ditemukan</p><p className="mt-1 text-sm text-slate-500">Coba ubah kata kunci atau filter yang digunakan.</p><button type="button" onClick={resetFilters} className="mt-4 text-sm font-medium text-blue-600 hover:text-blue-700">Hapus semua filter</button></td></tr>}
+
+                {filteredAssets.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="px-5 py-14 text-center">
+                      <p className="font-medium text-slate-700">
+                        Data aset tidak ditemukan
+                      </p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Coba ubah kata kunci atau filter yang digunakan.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={resetFilters}
+                        className="mt-4 text-sm font-medium text-blue-600 hover:text-blue-700"
+                      >
+                        Hapus semua filter
+                      </button>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
+
           <div className="flex flex-col gap-1 border-t border-slate-200 px-5 py-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-            <span>Menampilkan <strong className="text-slate-700">{filteredAssets.length}</strong> dari <strong className="text-slate-700">{assets.length}</strong> aset</span>
+            <span>
+              Menampilkan{" "}
+              <strong className="text-slate-700">
+                {filteredAssets.length}
+              </strong>{" "}
+              dari{" "}
+              <strong className="text-slate-700">{assets.length}</strong>{" "}
+              aset
+            </span>
             <span>Geser tabel ke samping untuk melihat kolom lainnya</span>
           </div>
         </section>
@@ -315,12 +775,23 @@ function AsetPageContent() {
   const queryStatus = searchParams.get("status");
   const initialStatus = getStatusFromQuery(queryStatus);
 
-  return <AsetContent key={`${queryStatus ?? ""}:${initialStatus}`} initialStatus={initialStatus} />;
+  return (
+    <AsetContent
+      key={`${queryStatus ?? ""}:${initialStatus}`}
+      initialStatus={initialStatus}
+    />
+  );
 }
 
 export default function AsetPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-sm text-slate-500">Memuat data aset...</div>}>
+    <Suspense
+      fallback={
+        <div className="p-6 text-sm text-slate-500">
+          Memuat data aset...
+        </div>
+      }
+    >
       <AsetPageContent />
     </Suspense>
   );

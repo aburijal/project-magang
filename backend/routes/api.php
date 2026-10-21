@@ -10,17 +10,36 @@ use App\Http\Controllers\Api\CertificateController;
 use App\Http\Controllers\Api\AssetCoordinateController;
 use App\Http\Controllers\Api\AssetPhotoController;
 
-// Login: tidak membutuhkan token
+// Login: dapat diakses tanpa login
 Route::post('/login', [AuthController::class, 'login']);
 
-// Data master: dapat dibaca tanpa login
+// Data master: publik, hanya untuk membaca
 Route::get('/opds', [MasterDataController::class, 'opds']);
 Route::get('/locations', [MasterDataController::class, 'locations']);
 Route::get('/asset-categories', [MasterDataController::class, 'assetCategories']);
 Route::get('/land-rights', [MasterDataController::class, 'landRights']);
 Route::get('/acquisition-sources', [MasterDataController::class, 'acquisitionSources']);
 
-// Endpoint yang wajib login
+// Data aset: publik hanya untuk membaca
+Route::apiResource('land-assets', LandAssetController::class)
+    ->only(['index', 'show']);
+
+// Sertifikat: publik hanya untuk membaca
+Route::apiResource('land-assets.certificates', CertificateController::class)
+    ->only(['index', 'show'])
+    ->scoped();
+
+// Koordinat: publik hanya untuk membaca
+Route::apiResource('land-assets.coordinates', AssetCoordinateController::class)
+    ->only(['index', 'show'])
+    ->scoped();
+
+// Foto: publik hanya untuk membaca
+Route::apiResource('land-assets.photos', AssetPhotoController::class)
+    ->only(['index', 'show'])
+    ->scoped();
+
+// Endpoint yang memerlukan login
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
         return response()->json([
@@ -28,22 +47,23 @@ Route::middleware('auth:sanctum')->group(function () {
         ]);
     });
 
-    Route::apiResource(
-        'land-assets.certificates',
-        CertificateController::class
-    )->scoped();
-
-    Route::apiResource(
-        'land-assets.coordinates',
-        AssetCoordinateController::class
-    )->scoped();
-
-    Route::apiResource(
-        'land-assets.photos',
-        AssetPhotoController::class
-    )->scoped();
-
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    Route::apiResource('land-assets', LandAssetController::class);
+    // Hanya admin yang boleh menambah, mengubah, dan menghapus
+    Route::middleware('admin')->group(function () {
+        Route::apiResource('land-assets', LandAssetController::class)
+            ->except(['index', 'show']);
+
+        Route::apiResource('land-assets.certificates', CertificateController::class)
+            ->only(['store', 'update', 'destroy'])
+            ->scoped();
+
+        Route::apiResource('land-assets.coordinates', AssetCoordinateController::class)
+            ->only(['store', 'update', 'destroy'])
+            ->scoped();
+
+        Route::apiResource('land-assets.photos', AssetPhotoController::class)
+            ->only(['store', 'update', 'destroy'])
+            ->scoped();
+    });
 });

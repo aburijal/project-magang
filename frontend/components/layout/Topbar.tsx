@@ -127,7 +127,13 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
               </div>
               <div className="hidden sm:block">
                 <p className="text-sm font-semibold text-slate-800">{session?.user.name || "Masuk"}</p>
-                <p className="text-xs text-slate-500">{session ? "Administrator" : "Login ke sistem"}</p>
+                <p className="text-xs text-slate-500">
+  {!session
+    ? "Pengunjung"
+    : session.user.role === "admin"
+      ? "Administrator"
+      : "User biasa"}
+</p>
               </div>
             </button>
             {showAccount && session && (

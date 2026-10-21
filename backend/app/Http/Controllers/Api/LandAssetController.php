@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\LandAsset;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class LandAssetController extends Controller
 {
@@ -242,11 +244,24 @@ class LandAssetController extends Controller
     }
 
     /**
-     * Menghapus aset tanah.
+     * Menghapus aset tanah beserta file fotonya.
      */
     public function destroy(LandAsset $land_asset)
     {
-        $land_asset->delete();
+        $photoPaths = $land_asset->photos()
+            ->pluck('file_path')
+            ->all();
+
+        DB::transaction(function () use ($land_asset) {
+            $land_asset->delete();
+        });
+
+        // Hapus file setelah transaksi database berhasil.
+        foreach ($photoPaths as $path) {
+            if ($path && Storage::disk('public')->exists($path)) {
+                Storage::disk('public')->delete($path);
+            }
+        }
 
         return response()->json([
             'message' => 'Aset tanah berhasil dihapus.',

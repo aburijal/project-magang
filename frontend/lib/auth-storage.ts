@@ -1,7 +1,11 @@
+
+export type UserRole = "admin" | "user";
+
 export interface AuthUser {
   id: number;
   name: string;
   email: string;
+  role: UserRole;
 }
 
 export interface AuthSession {
@@ -19,7 +23,17 @@ export function loadAuthSession(): AuthSession | null {
 
   try {
     const session = JSON.parse(stored) as AuthSession;
-    if (!session.token || !session.user?.email || !session.user?.name) return null;
+
+    if (
+      !session.token ||
+      !session.user?.email ||
+      !session.user?.name ||
+      !["admin", "user"].includes(session.user?.role)
+    ) {
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+      return null;
+    }
+
     return session;
   } catch {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -27,10 +41,10 @@ export function loadAuthSession(): AuthSession | null {
   }
 }
 
-export function saveAuthSession(session: AuthSession) {
+export function saveAuthSession(session: AuthSession): void {
   window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session));
 }
 
-export function clearAuthSession() {
+export function clearAuthSession(): void {
   window.localStorage.removeItem(AUTH_STORAGE_KEY);
 }
