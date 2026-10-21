@@ -9,7 +9,8 @@ import { findDuplicateAsset } from "@/lib/asset-import";
 import { uniquePhotos } from "@/lib/photo-utils";
 import { Asset } from "@/types/asset";
 
-const inputClass = "mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+const inputClass =
+  "mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#315F86] focus:ring-2 focus:ring-[#E7EFF8]";
 
 export default function TambahAsetPage() {
   const router = useRouter();
@@ -139,9 +140,12 @@ export default function TambahAsetPage() {
           <h1 className="mt-4 text-2xl font-bold text-slate-900">Tambah Aset Tanah</h1>
           <p className="mt-1 text-sm text-slate-500">Masukkan data aset tanah baru ke katalog inventaris.</p>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <form
+  onSubmit={handleSubmit}
+  className="space-y-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8"
+>
           <section>
-            <h2 className="font-semibold text-slate-900">Identitas Aset</h2>
+           <h2 className="border-b border-slate-100 pb-3 text-base font-bold text-[#193B5A]">Identitas Aset</h2>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <label className="text-sm font-medium text-slate-700 md:col-span-2">Nama aset *<input name="nama" required className={inputClass} placeholder="Contoh: Tanah Kantor Kecamatan" /></label>
               <label className="text-sm font-medium text-slate-700">Kecamatan *<select name="kecamatan" required className={inputClass}><option value="">Pilih kecamatan</option><option>Banda Sakti</option><option>Muara Dua</option><option>Muara Satu</option><option>Blang Mangat</option></select></label>
@@ -154,19 +158,19 @@ export default function TambahAsetPage() {
             <h2 className="font-semibold text-slate-900">Denah dan Foto Aset</h2>
             <p className="mt-1 text-sm text-slate-500">Denah lokasi wajib diupload. Foto tambahan dapat dipilih lebih dari satu dan akan masuk ke menu Dokumen Aset.</p>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <label className="cursor-pointer rounded-lg border-2 border-dashed border-blue-200 bg-blue-50/50 p-5 text-center text-sm text-blue-700 hover:bg-blue-50">
+             <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#B8CDE0] bg-[#F4F8FC] p-8 text-center text-sm text-[#315F86] transition hover:border-[#315F86] hover:bg-[#E7EFF8]">
                 <span className="font-semibold">Upload denah lokasi *</span>
                 <span className="mt-1 block text-xs text-slate-500">Format gambar: JPG, PNG, atau WEBP</span>
                 <input type="file" accept="image/*" required={!denahPhoto} onChange={handleDenahChange} className="sr-only" />
               </label>
-              <label className="cursor-pointer rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-5 text-center text-sm text-slate-700 hover:bg-slate-100">
+             <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-600 transition hover:border-[#315F86] hover:bg-[#F4F8FC]">
                 <span className="font-semibold">Tambah foto lainnya</span>
                 <span className="mt-1 block text-xs text-slate-500">Bisa memilih beberapa foto sekaligus</span>
                 <input type="file" accept="image/*" multiple onChange={handleAdditionalPhotosChange} className="sr-only" />
               </label>
             </div>
             {denahPhoto && (
-              <div className="mt-4 flex items-center gap-3 rounded-lg border border-blue-100 bg-blue-50 p-3">
+              <div className="mt-4 flex items-center gap-4 rounded-xl border border-[#D7E4F0] bg-[#F4F8FC] p-4">
                 <img src={denahPhoto} alt="Pratinjau denah lokasi" className="h-20 w-28 rounded object-cover" />
                 <div><p className="text-sm font-medium text-slate-800">Denah lokasi siap disimpan</p><p className="text-xs text-slate-500">Foto utama dokumen aset</p></div>
               </div>
@@ -201,10 +205,33 @@ export default function TambahAsetPage() {
               <label className="text-sm font-medium text-slate-700">Longitude<input name="longitude" type="number" step="any" className={inputClass} placeholder="97.14000" /></label>
               <label className="text-sm font-medium text-slate-700">Nilai perolehan<input name="nilai" type="number" min="0" className={inputClass} placeholder="Rp" /></label>
             </div>
-            <label className="mt-4 block text-sm font-medium text-slate-700">Keterangan<textarea name="keterangan" rows={3} className="mt-2 w-full rounded-lg border border-slate-300 p-3 text-sm outline-none focus:border-blue-500" /></label>
+           <label className="mt-4 block text-sm font-medium text-slate-700">
+  Keterangan
+  <textarea
+    name="keterangan"
+    rows={3}
+    className="mt-2 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 outline-none transition focus:border-[#315F86] focus:ring-2 focus:ring-[#E7EFF8]"
+  />
+</label>
           </section>
-          {error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}
-          <div className="flex justify-end gap-3 border-t border-slate-100 pt-5"><button type="button" onClick={() => router.back()} className="ui-button-secondary font-medium">Batal</button><button type="submit" disabled={isReadingPhotos} className="ui-button-primary font-medium">{isReadingPhotos ? "Memproses foto..." : "Simpan Aset"}</button></div>
+          {error &&<p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">{error}</p>}
+         <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
+  <button
+    type="button"
+    onClick={() => router.back()}
+    className="ui-button-secondary rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+  >
+    Batal
+  </button>
+
+  <button
+    type="submit"
+    disabled={isReadingPhotos}
+    className="ui-button-primary rounded-xl bg-[#193B5A] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#315F86] disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    {isReadingPhotos ? "Memproses foto..." : "Simpan Aset"}
+  </button>
+</div>
         </form>
       </div>
     </AppLayout>
