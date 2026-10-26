@@ -1,6 +1,7 @@
 
 "use client";
 
+import { fetchAssetsFromApi } from "@/lib/asset-api";
 import { ChangeEvent, Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -55,7 +56,9 @@ function AsetContent({
   const [district, setDistrict] = useState("Semua Kecamatan");
   const [acquisitionSource, setAcquisitionSource] =
     useState<AcquisitionSourceFilter>("Semua Asal Usul");
-  const [assets, setAssets] = useState<Asset[]>(dummyAssets);
+  const [assets, setAssets] = useState<Asset[]>([]);
+const [isLoadingAssets, setIsLoadingAssets] = useState(true);
+const [assetsError, setAssetsError] = useState("");
   const [importPreview, setImportPreview] =
     useState<AssetImportPreview[] | null>(null);
   const [deleteError, setDeleteError] = useState("");
@@ -98,20 +101,41 @@ function AsetContent({
     return true;
   }
 
-  // Memuat data aset dari penyimpanan lokal.
-  useEffect(() => {
-    const refreshAssets = () => {
-      setAssets(loadAssets());
-    };
+  // Memuat daftar aset dari backend Laravel.
+useEffect(() => {
+  let cancelled = false;
 
-    refreshAssets();
+  async function refreshAssets() {
+    setIsLoadingAssets(true);
+    setAssetsError("");
 
-    window.addEventListener("assets-updated", refreshAssets);
+    try {
+      const data = await fetchAssetsFromApi();
 
-    return () => {
-      window.removeEventListener("assets-updated", refreshAssets);
-    };
-  }, []);
+      if (!cancelled) {
+        setAssets(data);
+      }
+    } catch (error) {
+      if (!cancelled) {
+        setAssetsError(
+          error instanceof Error
+            ? error.message
+            : "Data aset gagal dimuat dari backend.",
+        );
+      }
+    } finally {
+      if (!cancelled) {
+        setIsLoadingAssets(false);
+      }
+    }
+  }
+
+  void refreshAssets();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
 
   const filteredAssets = useMemo(
     () =>
@@ -523,6 +547,17 @@ function AsetContent({
           <div className="border-b border-slate-200 p-5">
             <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
+                {isLoadingAssets && (
+  <p className="text-sm text-slate-500">
+    Memuat data aset dari database...
+  </p>
+)}
+
+{assetsError && (
+  <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+    {assetsError}
+  </div>
+)}
                 <h2 className="font-semibold text-slate-900">
                   Daftar inventaris
                 </h2>
