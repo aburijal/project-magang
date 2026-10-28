@@ -10,7 +10,7 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api";
 
 const inputClass =
-  "mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+  "mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-[#315F86] focus:ring-2 focus:ring-[#E7EFF8]";
 
 type PhotoItem = {
   file: File;
@@ -371,10 +371,10 @@ export default function TambahAsetPage() {
 
         <form
           onSubmit={handleSubmit}
-          className="space-y-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+          className="space-y-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm md:p-8"
         >
           <section>
-            <h2 className="font-semibold text-slate-900">Identitas Aset</h2>
+          <h2 className="border-b border-slate-100 pb-3 text-base font-bold text-[#193B5A]">Identitas Aset</h2>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <label className="text-sm font-medium text-slate-700 md:col-span-2">
                 Nama aset *
@@ -441,7 +441,7 @@ export default function TambahAsetPage() {
             </p>
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <label className="cursor-pointer rounded-lg border-2 border-dashed border-blue-200 bg-blue-50/50 p-5 text-center text-sm text-blue-700 hover:bg-blue-50">
+            <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#B8CDE0] bg-[#F4F8FC] p-8 text-center text-sm text-[#315F86] transition hover:border-[#315F86] hover:bg-[#E7EFF8]">
                 <span className="font-semibold">Upload denah lokasi *</span>
                 <span className="mt-1 block text-xs text-slate-500">
                   JPG, PNG, atau WEBP — maksimal 5 MB
@@ -455,7 +455,7 @@ export default function TambahAsetPage() {
                 />
               </label>
 
-              <label className="cursor-pointer rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-5 text-center text-sm text-slate-700 hover:bg-slate-100">
+              <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-slate-600 transition hover:border-[#315F86] hover:bg-[#F4F8FC]">
                 <span className="font-semibold">Tambah foto lainnya</span>
                 <span className="mt-1 block text-xs text-slate-500">
                   Bisa memilih beberapa foto sekaligus

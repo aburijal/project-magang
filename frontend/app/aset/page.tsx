@@ -32,7 +32,11 @@ import {
   AcquisitionSourceFilter,
   matchesAcquisitionSource,
 } from "@/lib/asset-filters";
-import { loadAuthSession, AuthSession } from "@/lib/auth-storage";
+import {
+  loadAuthSession,
+  subscribeAuthSession,
+  AuthSession,
+} from "@/lib/auth-storage";
 
 function getStatusFromQuery(value: string | null): AssetStatusFilter {
   const normalized = value?.trim().toLowerCase().replaceAll("_", " ");
@@ -66,20 +70,18 @@ const [assetsError, setAssetsError] = useState("");
   const [session, setSession] = useState<AuthSession | null>(null);
 
   // Memuat sesi login dan memperbaruinya saat storage berubah.
-  useEffect(() => {
-    const refreshSession = () => {
-      setSession(loadAuthSession());
-    };
+ // Memuat sesi login dan memperbaruinya saat login/logout.
+useEffect(() => {
+  const refreshSession = () => {
+    setSession(loadAuthSession());
+  };
 
-    refreshSession();
+  refreshSession();
 
-    window.addEventListener("storage", refreshSession);
+  const unsubscribe = subscribeAuthSession(refreshSession);
 
-    return () => {
-      window.removeEventListener("storage", refreshSession);
-    };
-  }, []);
-
+  return unsubscribe;
+}, []);
   const isAdmin = session?.user.role === "admin";
 
   // Pemeriksaan akses sebelum aksi yang mengubah data.
@@ -382,14 +384,14 @@ useEffect(() => {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-600">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#315F86]">
               Katalog inventaris
             </p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-900">
-              Data Aset Tanah
-            </h1>
+           <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#193B5A]">
+  Data Aset Tanah
+</h1>
             <p className="mt-1 text-sm text-slate-500">
               Kelola dan pantau seluruh aset tanah pemerintah daerah.
             </p>
@@ -398,7 +400,9 @@ useEffect(() => {
           <div className="flex flex-col gap-2 sm:flex-row">
             {isAdmin && (
               <>
-                <label className="ui-button ui-button-outline cursor-pointer border-blue-200 bg-blue-50 font-semibold text-blue-700 shadow-sm hover:bg-blue-100">
+                <label className="ui-button ui-button-outline cursor-pointer rounded-xl border border-[#B8CDE0] bg-[#F4F8FC] font-semibold text-[#315F86] shadow-sm transition hover:bg-[#E7EFF8]"
+                  htmlFor="import-file"
+                >
                   {isReadingImport
                     ? "Membaca Excel..."
                     : "Import File Excel"}
@@ -413,7 +417,7 @@ useEffect(() => {
 
                 <Link
                   href="/aset/tambah"
-                  className="ui-button ui-button-primary font-semibold shadow-sm"
+                 className="ui-button ui-button-primary rounded-xl font-semibold shadow-sm transition"
                 >
                   + Tambah Aset
                 </Link>
@@ -423,14 +427,14 @@ useEffect(() => {
         </div>
 
         {deleteError && (
-          <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {deleteError}
           </p>
         )}
 
         <Link
           href="/aset"
-          className="total-asset-card"
+         className="total-asset-card rounded-2xl border border-[#D7E4F0] shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md"
           aria-label={`Total aset: ${assets.length} bidang tanah terdaftar`}
         >
           <span className="total-asset-card__icon" aria-hidden="true">
@@ -548,29 +552,30 @@ useEffect(() => {
             <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 {isLoadingAssets && (
-  <p className="text-sm text-slate-500">
-    Memuat data aset dari database...
-  </p>
-)}
+                  <p className="text-sm text-slate-500">
+                    Memuat data aset dari database...
+                  </p>
+                )}
 
-{assetsError && (
-  <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
-    {assetsError}
-  </div>
-)}
-                <h2 className="font-semibold text-slate-900">
+                {assetsError && (
+                  <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {assetsError}
+                  </div>
+                )}
+
+                <h2 className="text-base font-bold text-[#193B5A]">
                   Daftar inventaris
                 </h2>
                 <p className="text-sm text-slate-500">
                   Gunakan pencarian untuk menemukan aset dengan cepat.
                 </p>
               </div>
-              <span className="rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700">
+              <span className="rounded-full border border-[#D7E4F0] bg-[#F4F8FC] px-3 py-1.5 text-xs font-semibold text-[#315F86]">
                 {filteredAssets.length} data ditemukan
               </span>
             </div>
 
-            <div className="asset-filter-bar asset-filter-bar--assets">
+           <div className="asset-filter-bar asset-filter-bar--assets rounded-xl border border-slate-200 bg-slate-50/70 p-3">
               <div className="asset-filter-search relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
                   ⌕
@@ -630,7 +635,7 @@ useEffect(() => {
               <button
                 type="button"
                 onClick={resetFilters}
-                className="asset-filter-control border-slate-300 px-3 font-medium text-slate-600 hover:bg-slate-50"
+className="asset-filter-control rounded-lg border-slate-300 bg-white px-4 font-medium text-[#315F86] transition hover:bg-[#E7EFF8]"
               >
                 Reset
               </button>
@@ -639,8 +644,8 @@ useEffect(() => {
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1050px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                <tr className="border-b border-slate-200">
+              <thead className="bg-[#F4F8FC] text-xs uppercase tracking-wide text-[#315F86]">
+               <tr className="border-b border-[#D7E4F0]">
                   <th className="w-16 px-5 py-4 font-semibold">No</th>
                   <th className="px-5 py-4 font-semibold">Aset</th>
                   <th className="px-5 py-4 font-semibold">Lokasi</th>
@@ -672,7 +677,7 @@ useEffect(() => {
                   return (
                     <tr
                       key={asset.id}
-                      className="transition hover:bg-blue-50/40"
+                     className="transition-colors duration-150 hover:bg-[#F4F8FC]"
                     >
                       <td className="px-5 py-4 align-top font-medium text-slate-500">
                         {asset.no}
@@ -735,7 +740,7 @@ useEffect(() => {
                         <div className="flex justify-center gap-2">
                           <Link
                             href={`/aset/${asset.id}`}
-                            className="ui-button ui-button-secondary text-xs font-medium"
+                            className="ui-button ui-button-secondary rounded-lg text-xs font-semibold transition"
                           >
                             Detail
                           </Link>
@@ -744,7 +749,7 @@ useEffect(() => {
                             <>
                               <Link
                                 href={`/aset/${asset.id}/edit`}
-                                className="ui-button ui-button-outline text-xs font-medium text-blue-600"
+                              className="ui-button ui-button-outline rounded-lg text-xs font-semibold text-[#315F86] transition hover:bg-[#F4F8FC]"
                               >
                                 Edit
                               </Link>
@@ -767,16 +772,16 @@ useEffect(() => {
                 {filteredAssets.length === 0 && (
                   <tr>
                     <td colSpan={8} className="px-5 py-14 text-center">
-                      <p className="font-medium text-slate-700">
-                        Data aset tidak ditemukan
-                      </p>
+                      <p className="font-semibold text-[#193B5A]">
+  Data aset tidak ditemukan
+</p>
                       <p className="mt-1 text-sm text-slate-500">
                         Coba ubah kata kunci atau filter yang digunakan.
                       </p>
                       <button
                         type="button"
                         onClick={resetFilters}
-                        className="mt-4 text-sm font-medium text-blue-600 hover:text-blue-700"
+                        className="mt-4 rounded-lg px-4 py-2 text-sm font-semibold text-[#315F86] transition hover:bg-[#E7EFF8]"
                       >
                         Hapus semua filter
                       </button>

@@ -4,15 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\LandAsset;
-use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use App\Models\Opd;
 use App\Models\Location;
 use App\Models\AssetCategory;
 use App\Models\LandRight;
 use App\Models\AcquisitionSource;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class LandAssetController extends Controller
 {
@@ -311,6 +311,8 @@ class LandAssetController extends Controller
         ]);
     }
 
+
+
     /**
      * Menghapus aset tanah beserta file fotonya.
      */
@@ -318,16 +320,24 @@ class LandAssetController extends Controller
     {
         $photoPaths = $land_asset->photos()
             ->pluck('file_path')
+            ->filter()
+            ->values()
             ->all();
 
         DB::transaction(function () use ($land_asset) {
             $land_asset->delete();
         });
 
-        // Hapus file setelah transaksi database berhasil.
         foreach ($photoPaths as $path) {
-            if ($path && Storage::disk('public')->exists($path)) {
-                Storage::disk('public')->delete($path);
+            $deleted = Storage::disk('public')->delete($path);
+
+            if (
+                !$deleted &&
+                Storage::disk('public')->exists($path)
+            ) {
+                throw new \RuntimeException(
+                    "File foto {$path} tidak dapat dihapus dari penyimpanan."
+                );
             }
         }
 
@@ -335,4 +345,6 @@ class LandAssetController extends Controller
             'message' => 'Aset tanah berhasil dihapus.',
         ]);
     }
+
+
 }
