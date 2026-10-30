@@ -635,35 +635,71 @@ useEffect(() => {
       </div>
     </div>
 
-    <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
-      <button
-        type="button"
-        onClick={() => openDetail(document)}
-        className="rounded-lg bg-[#193B5A] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#315F86]"
-      >
-        Lihat Detail
-      </button>
-
-      {isAdmin && (
-        <>
-          <button
-            type="button"
-            onClick={() => openEdit(document)}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+   
+<div className="mt-5 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
+  {/* Kiri: Edit dan Hapus */}
+  <div className="flex items-center gap-2">
+    {isAdmin && (
+      <>
+        <button
+          type="button"
+          onClick={() => openEdit(document)}
+          aria-label={`Edit ${document.title}`}
+          title="Edit dokumen"
+          className="group inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-100 hover:shadow-md active:translate-y-0 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-5 w-5 transition-transform duration-200 group-hover:rotate-[-5deg]"
+            aria-hidden="true"
           >
-            Edit
-          </button>
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L9 17l-4 1 1-4Z" />
+          </svg>
+        </button>
 
-          <button
-            type="button"
-            onClick={() => handleDelete(document)}
-            className="rounded-lg border border-red-100 px-3 py-2 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+        <button
+          type="button"
+          onClick={() => handleDelete(document)}
+          aria-label={`Hapus ${document.title}`}
+          title="Hapus dokumen"
+          className="group inline-flex h-10 w-10 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-red-300 hover:bg-red-100 hover:shadow-md active:translate-y-0 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-5 w-5 transition-transform duration-200 group-hover:scale-110"
+            aria-hidden="true"
           >
-            Hapus
-          </button>
-        </>
-      )}
-    </div>
+            <path d="M3 6h18" />
+            <path d="M8 6V4h8v2" />
+            <path d="m19 6-1 14H6L5 6" />
+            <path d="M10 11v5M14 11v5" />
+          </svg>
+        </button>
+      </>
+    )}
+  </div>
+
+  {/* Kanan: tombol utama */}
+  <button
+    type="button"
+    onClick={() => openDetail(document)}
+    className="inline-flex items-center justify-center rounded-xl bg-[#244B70] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#193B5A] hover:shadow-md active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#315F86] focus-visible:ring-offset-2"
+  >
+    Lihat Dokumen
+  </button>
+</div>
+
   </div>
 </article>
                 );

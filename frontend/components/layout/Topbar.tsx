@@ -2,6 +2,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   AuthSession,
   loadAuthSession,
@@ -18,6 +19,8 @@ interface TopbarProps {
 }
 
 export default function Topbar({ onMenuClick }: TopbarProps) {
+  const router = useRouter();
+
   const [showLogin, setShowLogin] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
   const [session, setSession] = useState<AuthSession | null>(null);
@@ -116,36 +119,34 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
     }
   }
 
-  async function handleLogout() {
-    const currentSession = session;
+ 
+async function handleLogout() {
+  const currentSession = session;
 
-    // Hapus session lokal segera agar UI tidak mempertahankan role lama.
-    clearAuthSession();
-    setSession(null);
-    setShowAccount(false);
-    setShowLogin(false);
+  // Hapus sesi lokal agar UI langsung berubah.
+  clearAuthSession();
+  setSession(null);
+  setShowAccount(false);
+  setShowLogin(false);
 
-    if (currentSession) {
-      try {
-        const response = await fetch(`${apiUrl}/logout`, {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${currentSession.token}`,
-          },
-        });
-
-        if (!response.ok) {
-          console.error("Server menolak permintaan logout.");
-        }
-      } catch (error) {
-        console.error(
-          "Gagal menghubungi server saat logout.",
-          error,
-        );
-      }
+  // Beri tahu backend bahwa sesi telah berakhir.
+  if (currentSession) {
+    try {
+      await fetch(`${apiUrl}/logout`, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${currentSession.token}`,
+        },
+      });
+    } catch (error) {
+      console.error("Gagal menghubungi endpoint logout:", error);
     }
   }
+
+  router.replace("/login");
+}
+
 
   return (
     <>
@@ -191,31 +192,31 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
             <div className="relative border-l border-slate-200 pl-2 sm:pl-5">
               <button
                 type="button"
-                onClick={() =>
-                  session
-                    ? setShowAccount((visible) => !visible)
-                    : setShowLogin(true)
-                }
+              onClick={() => {
+  setShowAccount(false);
+  setShowLogin(false);
+  router.push("/account");
+}}
                 className="flex items-center gap-2 rounded-lg p-1.5 text-left hover:bg-slate-100 sm:gap-3"
               >
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white sm:h-10 sm:w-10">
-                  {session
-                    ? session.user.name.charAt(0).toUpperCase()
-                    : "A"}
-                </div>
+                
+<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white sm:h-10 sm:w-10">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.8"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-5 w-5"
+    aria-hidden="true"
+  >
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4.5 21a7.5 7.5 0 0 1 15 0" />
+  </svg>
+</div>
 
-                <div className="hidden sm:block">
-                  <p className="text-sm font-semibold text-slate-800">
-                    {session?.user.name || "Masuk"}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {!session
-                      ? "Pengunjung"
-                      : session.user.role === "admin"
-                        ? "Administrator"
-                        : "Viewer"}
-                  </p>
-                </div>
+
               </button>
 
               {showAccount && session && (

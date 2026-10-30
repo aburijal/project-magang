@@ -4,13 +4,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 
+
 const menuItems = [
   { name: "Dashboard", href: "/dashboard", icon: "dashboard" },
   { name: "Peta Aset Tanah", href: "/peta", icon: "map" },
   { name: "Data Aset Tanah", href: "/aset", icon: "asset" },
   { name: "Dokumen Aset", href: "/dokumen", icon: "document" },
-  { name: "Pengaturan", href: "/pengaturan", icon: "settings" },
 ] as const;
+
 
 type IconName = (typeof menuItems)[number]["icon"];
 

@@ -45,6 +45,7 @@ function getPhotos(document?: AssetDocument): string[] {
   );
 }
 
+
 function getReportSettings() {
   const settings = loadSystemSettings();
 
@@ -52,10 +53,13 @@ function getReportSettings() {
     institutionName: settings.institutionName,
     applicationName: settings.applicationName,
     managingUnit: settings.managingUnit,
+    paperSize: settings.paperSize,
+    orientation: settings.orientation,
     showLogo: settings.showLogo,
     showPrintDate: settings.showPrintDate,
   };
 }
+
 
 function reportBody(asset: Asset, document?: AssetDocument): string {
   const photos = getPhotos(document);
@@ -533,8 +537,8 @@ function reportHtml(asset: Asset, document?: AssetDocument): string {
             </div>
 
             <div class="header-text">
-              <h1>INVENTARISIR ASET TANAH PEMERINTAH KOTA LHOKSEUMAWE</h1>
-              <h2>DINAS PERTANAHAN - BIDANG P3T</h2>
+             <h1>INVENTARISIR ASET TANAH ${escapeHtml(settings.institutionName)}</h1>
+<h2>${escapeHtml(settings.managingUnit)}</h2>
             </div>
 
             <div class="badge">A</div>
@@ -605,12 +609,14 @@ export async function exportAssetToPdf(
       logging: false,
     });
 
-    const pdf = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4",
-      compress: true,
-    });
+   const settings = loadSystemSettings();
+
+const pdf = new jsPDF({
+  orientation: settings.orientation,
+  unit: "mm",
+  format: settings.paperSize === "f4" ? [210, 330] : "a4",
+  compress: true,
+});
 
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();

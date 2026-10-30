@@ -67,18 +67,18 @@ function AsetContent({
   const [session, setSession] = useState<AuthSession | null>(null);
 
   // Memuat sesi login dan memperbaruinya saat storage berubah.
- // Memuat sesi login dan memperbaruinya saat login/logout.
-useEffect(() => {
-  const refreshSession = () => {
-    setSession(loadAuthSession());
-  };
+  // Memuat sesi login dan memperbaruinya saat login/logout.
+  useEffect(() => {
+    const refreshSession = () => {
+      setSession(loadAuthSession());
+    };
 
-  refreshSession();
+    refreshSession();
 
-  const unsubscribe = subscribeAuthSession(refreshSession);
+    const unsubscribe = subscribeAuthSession(refreshSession);
 
-  return unsubscribe;
-}, []);
+    return unsubscribe;
+  }, []);
   const isAdmin = session?.user.role === "admin";
 
   // Pemeriksaan akses sebelum aksi yang mengubah data.
@@ -243,10 +243,10 @@ useEffect(() => {
         current?.map((item, index) =>
           index === 0
             ? {
-                ...item,
-                error:
-                  "Data aset sudah pernah diimpor. Seluruh proses import dibatalkan.",
-              }
+              ...item,
+              error:
+                "Data aset sudah pernah diimpor. Seluruh proses import dibatalkan.",
+            }
             : item,
         ) ?? null,
       );
@@ -345,12 +345,12 @@ useEffect(() => {
         current?.map((item, index) =>
           index === 0
             ? {
-                ...item,
-                error:
-                  error instanceof Error
-                    ? error.message
-                    : "Data tidak dapat disimpan.",
-              }
+              ...item,
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Data tidak dapat disimpan.",
+            }
             : item,
         ) ?? null,
       );
@@ -360,14 +360,14 @@ useEffect(() => {
   return (
     <AppLayout>
       <div className="space-y-6">
-       <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#315F86]">
               Katalog inventaris
             </p>
-           <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#193B5A]">
-  Data Aset Tanah
-</h1>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight text-[#193B5A]">
+              Data Aset Tanah
+            </h1>
             <p className="mt-1 text-sm text-slate-500">
               Kelola dan pantau seluruh aset tanah pemerintah daerah.
             </p>
@@ -383,6 +383,7 @@ useEffect(() => {
                     ? "Membaca Excel..."
                     : "Import File Excel"}
                   <input
+                    id="import-file"
                     type="file"
                     accept=".xlsx,.xls,.csv"
                     onChange={handleImportFile}
@@ -393,7 +394,7 @@ useEffect(() => {
 
                 <Link
                   href="/aset/tambah"
-                 className="ui-button ui-button-primary rounded-xl font-semibold shadow-sm transition"
+                  className="ui-button ui-button-primary rounded-xl font-semibold shadow-sm transition"
                 >
                   + Tambah Aset
                 </Link>
@@ -403,14 +404,14 @@ useEffect(() => {
         </div>
 
         {deleteError && (
-         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {deleteError}
           </p>
         )}
 
         <Link
           href="/aset"
-         className="total-asset-card rounded-2xl border border-[#D7E4F0] shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md"
+          className="total-asset-card rounded-2xl border border-[#D7E4F0] shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-md"
           aria-label={`Total aset: ${assets.length} bidang tanah terdaftar`}
         >
           <span className="total-asset-card__icon" aria-hidden="true">
@@ -498,13 +499,12 @@ useEffect(() => {
                         {item.asset?.alamat || "-"}
                       </td>
                       <td
-                        className={`px-3 py-2 text-xs font-medium ${
-                          item.error
+                        className={`px-3 py-2 text-xs font-medium ${item.error
                             ? "text-red-600"
                             : item.warning
                               ? "text-amber-600"
                               : "text-emerald-600"
-                        }`}
+                          }`}
                       >
                         {item.error || item.warning || "Siap diimport"}
                       </td>
@@ -527,9 +527,9 @@ useEffect(() => {
           <div className="border-b border-slate-200 p-5">
             <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
-               <h2 className="text-base font-bold text-[#193B5A]">
-  Daftar inventaris
-</h2>
+                <h2 className="text-base font-bold text-[#193B5A]">
+                  Daftar inventaris
+                </h2>
                 <p className="text-sm text-slate-500">
                   Gunakan pencarian untuk menemukan aset dengan cepat.
                 </p>
@@ -539,7 +539,7 @@ useEffect(() => {
               </span>
             </div>
 
-           <div className="asset-filter-bar asset-filter-bar--assets rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+            <div className="asset-filter-bar asset-filter-bar--assets rounded-xl border border-slate-200 bg-slate-50/70 p-3">
               <div className="asset-filter-search relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
                   ⌕
@@ -599,7 +599,7 @@ useEffect(() => {
               <button
                 type="button"
                 onClick={resetFilters}
-className="asset-filter-control rounded-lg border-slate-300 bg-white px-4 font-medium text-[#315F86] transition hover:bg-[#E7EFF8]"
+                className="asset-filter-control rounded-lg border-slate-300 bg-white px-4 font-medium text-[#315F86] transition hover:bg-[#E7EFF8]"
               >
                 Reset
               </button>
@@ -609,7 +609,7 @@ className="asset-filter-control rounded-lg border-slate-300 bg-white px-4 font-m
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1050px] text-left text-sm">
               <thead className="bg-[#F4F8FC] text-xs uppercase tracking-wide text-[#315F86]">
-               <tr className="border-b border-[#D7E4F0]">
+                <tr className="border-b border-[#D7E4F0]">
                   <th className="w-16 px-5 py-4 font-semibold">No</th>
                   <th className="px-5 py-4 font-semibold">Aset</th>
                   <th className="px-5 py-4 font-semibold">Lokasi</th>
@@ -641,7 +641,7 @@ className="asset-filter-control rounded-lg border-slate-300 bg-white px-4 font-m
                   return (
                     <tr
                       key={asset.id}
-                     className="transition-colors duration-150 hover:bg-[#F4F8FC]"
+                      className="transition-colors duration-150 hover:bg-[#F4F8FC]"
                     >
                       <td className="px-5 py-4 align-top font-medium text-slate-500">
                         {asset.no}
@@ -700,35 +700,71 @@ className="asset-filter-control rounded-lg border-slate-300 bg-white px-4 font-m
                           : "-"}
                       </td>
 
+
                       <td className="px-5 py-4 align-top">
-                        <div className="flex justify-center gap-2">
+                        <div className="flex items-center justify-between gap-3">
+                          {/* Kiri: Edit dan Hapus */}
+                          <div className="flex items-center gap-2">
+                            {isAdmin && (
+                              <>
+                                <Link
+                                  href={`/aset/${asset.id}/edit`}
+                                  aria-label={`Edit ${asset.nama_barang_aset}`}
+                                  title="Edit aset"
+                                  className="group inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-blue-50 text-blue-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:bg-blue-100 hover:shadow-md active:translate-y-0 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2"
+                                >
+                                  <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="h-5 w-5 transition-transform duration-200 group-hover:rotate-[-5deg]"
+                                    aria-hidden="true"
+                                  >
+                                    <path d="M12 20h9" />
+                                    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L9 17l-4 1 1-4Z" />
+                                  </svg>
+                                </Link>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDelete(asset)}
+                                  aria-label={`Hapus ${asset.nama_barang_aset}`}
+                                  title="Hapus aset"
+                                  className="group inline-flex h-10 w-10 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-red-300 hover:bg-red-100 hover:shadow-md active:translate-y-0 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2"
+                                >
+                                  <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className="h-5 w-5 transition-transform duration-200 group-hover:scale-110"
+                                    aria-hidden="true"
+                                  >
+                                    <path d="M3 6h18" />
+                                    <path d="M8 6V4h8v2" />
+                                    <path d="m19 6-1 14H6L5 6" />
+                                    <path d="M10 11v5M14 11v5" />
+                                  </svg>
+                                </button>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Kanan: Lihat Detail */}
                           <Link
                             href={`/aset/${asset.id}`}
-                            className="ui-button ui-button-secondary rounded-lg text-xs font-semibold transition"
+                            className="inline-flex items-center justify-center rounded-xl bg-[#244B70] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#193B5A] hover:shadow-md active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#315F86] focus-visible:ring-offset-2"
                           >
-                            Detail
+                            Lihat Detail
                           </Link>
-
-                          {isAdmin && (
-                            <>
-                              <Link
-                                href={`/aset/${asset.id}/edit`}
-                              className="ui-button ui-button-outline rounded-lg text-xs font-semibold text-[#315F86] transition hover:bg-[#F4F8FC]"
-                              >
-                                Edit
-                              </Link>
-
-                              <button
-                                type="button"
-                                onClick={() => handleDelete(asset)}
-                                className="ui-button-danger text-xs font-medium"
-                              >
-                                Hapus
-                              </button>
-                            </>
-                          )}
                         </div>
                       </td>
+
                     </tr>
                   );
                 })}
@@ -737,8 +773,8 @@ className="asset-filter-control rounded-lg border-slate-300 bg-white px-4 font-m
                   <tr>
                     <td colSpan={8} className="px-5 py-14 text-center">
                       <p className="font-semibold text-[#193B5A]">
-  Data aset tidak ditemukan
-</p>
+                        Data aset tidak ditemukan
+                      </p>
                       <p className="mt-1 text-sm text-slate-500">
                         Coba ubah kata kunci atau filter yang digunakan.
                       </p>
