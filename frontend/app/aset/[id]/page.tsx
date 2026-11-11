@@ -5,7 +5,8 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import AppLayout from "@/components/layout/AppLayout";
 import { getAsset } from "@/lib/asset-storage";
-import { loadDocuments } from "@/lib/document-storage";
+import { AssetDocument, loadDocuments } from "@/lib/document-storage";
+import { resolvePhotos } from "@/lib/photo-storage";
 import { exportAssetToPdf } from "@/lib/asset-export";
 import { loadAuthSession, subscribeAuthSession } from "@/lib/auth-storage";
 import { getAssetStatus } from "@/lib/asset-utils";
@@ -16,10 +17,7 @@ export default function DetailAsetPage() {
 
   const assetId = Number(params.id);
   const asset = useMemo(() => getAsset(assetId), [assetId]);
-  const document = useMemo(
-    () => loadDocuments().find((item) => item.assetId === assetId),
-    [assetId],
-  );
+  const [document, setDocument] = useState<AssetDocument | undefined>();
 
   useEffect(() => {
     const refreshRole = () => {
@@ -29,6 +27,23 @@ export default function DetailAsetPage() {
     refreshRole();
     return subscribeAuthSession(refreshRole);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadDocument = async () => {
+      const stored = loadDocuments().find((item) => item.assetId === assetId);
+      if (!stored) {
+        setDocument(undefined);
+        return;
+      }
+      const photos = await resolvePhotos(stored.photos);
+      if (active) setDocument({ ...stored, photos });
+    };
+    void loadDocument();
+    return () => {
+      active = false;
+    };
+  }, [assetId]);
 
   if (!asset) {
     return (
@@ -88,7 +103,7 @@ export default function DetailAsetPage() {
   ];
 
   
-  function handleExportPdf() {
+  async function handleExportPdf() {
     const session = loadAuthSession();
 
     if (!session) {
@@ -111,6 +126,14 @@ export default function DetailAsetPage() {
     const currentDocument = loadDocuments().find(
       (item) => item.assetId === assetId,
     );
+
+    if (currentDocument) {
+      exportAssetToPdf(currentAsset, {
+        ...currentDocument,
+        photos: await resolvePhotos(currentDocument.photos),
+      });
+      return;
+    }
 
     exportAssetToPdf(currentAsset, currentDocument);
   }

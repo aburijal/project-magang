@@ -1,6 +1,7 @@
 import { Asset } from "@/types/asset";
 import { dummyAssets } from "@/data/dummy-assets";
 import { deleteDocumentsByAssetId, loadDocuments, saveDocuments } from "@/lib/document-storage";
+import { deletePhotos } from "@/lib/photo-storage";
 
 const STORAGE_KEY = "lhokseumawe-assets";
 
@@ -56,7 +57,7 @@ export function deleteAsset(id: number) {
   saveAssets(loadAssets().filter((asset) => asset.id !== id));
 }
 
-export function deleteAssetWithDocuments(id: number) {
+export async function deleteAssetWithDocuments(id: number) {
   const assets = loadAssets();
   const asset = assets.find((item) => item.id === id);
   if (!asset) throw new Error("Aset yang akan dihapus tidak ditemukan.");
@@ -67,6 +68,7 @@ export function deleteAssetWithDocuments(id: number) {
   try {
     deleteDocumentsByAssetId(id);
     saveAssets(assets.filter((item) => item.id !== id));
+    await deletePhotos(relatedDocuments.flatMap((document) => document.photos));
   } catch (error) {
     try {
       saveDocuments(documents);

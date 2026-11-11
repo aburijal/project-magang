@@ -2,6 +2,13 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import {
+  AuthSession,
+  clearAuthSession,
+  loadAuthSession,
+  subscribeAuthSession,
+} from "@/lib/auth-storage";
 
 const accountMenus = [
   {
@@ -57,6 +64,45 @@ const accountMenus = [
 ];
 
 export default function AccountPage() {
+  const [session, setSession] = useState<AuthSession | null>(null);
+
+  useEffect(() => {
+    const syncSession = () => setSession(loadAuthSession());
+
+    syncSession();
+    return subscribeAuthSession(syncSession);
+  }, []);
+
+  const accountMenusWithAuth = useMemo(() => {
+    const isAdmin = session?.user.role === "admin";
+
+    return accountMenus.map((menu) => {
+      if (menu.category !== "AUTHENTICATION") return menu;
+
+      return {
+        ...menu,
+        title: isAdmin ? "Logout" : "Login",
+        description: isAdmin
+          ? "Keluar dari akun administrator."
+          : "Masuk untuk mengakses fitur pengelolaan aset.",
+        icon: isAdmin ? (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="h-6 w-6">
+            <path d="M14 17l5-5-5-5" />
+            <path d="M19 12H7" />
+            <path d="M12 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h6" />
+          </svg>
+        ) : menu.icon,
+        href: isAdmin ? undefined : menu.href,
+      };
+    });
+  }, [session]);
+
+  function handleAuthAction() {
+    if (session?.user.role === "admin") {
+      clearAuthSession();
+    }
+  }
+
   return (
 <main className="min-h-screen bg-[#F4F7FB] pb-24 text-slate-800 sm:pb-0">
      <nav className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur">
@@ -119,34 +165,52 @@ export default function AccountPage() {
         </div>
 
         <section className="grid gap-4 sm:grid-cols-2">
-          {accountMenus.map((menu, index) => (
-            <Link
-              key={menu.title}
-              href={menu.href}
-             className="group relative flex min-h-[174px] flex-col rounded-2xl border border-slate-200/90 bg-white p-5 shadow-[0_2px_10px_rgba(25,59,90,0.025)] transition duration-200 hover:-translate-y-1 hover:border-[#B9CDDF] hover:shadow-[0_12px_30px_rgba(25,59,90,0.09)] active:scale-[0.98] active:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#315F86] focus:ring-offset-2 motion-reduce:transform-none motion-reduce:transition-none sm:p-6">
-              <div className="mb-5 flex items-start justify-between">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#E7EFF8] text-[#315F86] transition duration-200 group-hover:bg-[#193B5A] group-hover:text-white">
-                  {menu.icon}
+          {accountMenusWithAuth.map((menu, index) => {
+            const menuContent = (
+              <div className="w-full text-left">
+                <div className="relative mb-5 flex w-full items-start justify-between">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#E7EFF8] text-[#315F86] transition duration-200 group-hover:bg-[#193B5A] group-hover:text-white">
+                    {menu.icon}
+                  </div>
+                  <span className="absolute right-0 top-0 text-xs font-medium tabular-nums text-slate-400">
+                    0{index + 1}
+                  </span>
                 </div>
-                <span className="text-xs font-medium tabular-nums text-slate-400">
-                  0{index + 1}
+
+                <span className="block w-full text-[10px] font-bold tracking-[0.15em] text-[#63809B]">
+                  {menu.category}
+                </span>
+                <span className="mt-1.5 flex w-full items-center justify-between gap-3 text-left text-base font-bold text-[#193B5A]">
+                  {menu.title}
+                  <span className="text-lg text-slate-300 transition group-hover:translate-x-1 group-hover:text-[#315F86]">
+                    →
+                  </span>
+                </span>
+                <span className="mt-2 block w-full text-left text-sm leading-5 text-slate-500">
+                  {menu.description}
                 </span>
               </div>
+            );
+            const className = "group relative flex min-h-[174px] w-full flex-col items-start justify-start appearance-none rounded-2xl border border-slate-200/90 bg-white p-5 text-left shadow-[0_2px_10px_rgba(25,59,90,0.025)] transition duration-200 hover:-translate-y-1 hover:border-[#B9CDDF] hover:shadow-[0_12px_30px_rgba(25,59,90,0.09)] active:scale-[0.98] active:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-[#315F86] focus:ring-offset-2 motion-reduce:transform-none motion-reduce:transition-none sm:p-6";
 
-              <span className="text-[10px] font-bold tracking-[0.15em] text-[#63809B]">
-                {menu.category}
-              </span>
-              <span className="mt-1.5 flex items-center justify-between gap-3 text-base font-bold text-[#193B5A]">
-                {menu.title}
-                <span className="text-lg text-slate-300 transition group-hover:translate-x-1 group-hover:text-[#315F86]">
-                  →
-                </span>
-              </span>
-              <span className="mt-2 text-sm leading-5 text-slate-500">
-                {menu.description}
-              </span>
+            if (menu.category === "AUTHENTICATION" && session?.user.role === "admin") {
+              return (
+                <button key={menu.title} type="button" onClick={handleAuthAction} className={className}>
+                  {menuContent}
+                </button>
+              );
+            }
+
+            return (
+            <Link
+              key={menu.title}
+              href={menu.href ?? "/login"}
+             className={className}
+            >
+              {menuContent}
             </Link>
-          ))}
+            );
+          })}
         </section>
 
         
@@ -161,27 +225,41 @@ export default function AccountPage() {
   className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-4px_20px_rgba(25,59,90,0.08)] backdrop-blur-md sm:hidden"
 >
   <div className="mx-auto grid max-w-md grid-cols-4 gap-1">
-    {accountMenus.map((menu) => (
+    {accountMenusWithAuth.map((menu) => {
+      const menuLabel = menu.title === "Account Information"
+        ? "Account"
+        : menu.title === "Settings & Preference"
+          ? "Settings"
+          : menu.title === "Help Center"
+            ? "Help"
+            : menu.title;
+      const className = "group flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-xl px-1 text-[#315F86] transition duration-150 hover:bg-[#E7EFF8] active:scale-95 active:bg-[#D9E7F5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#315F86]";
+
+      if (menu.category === "AUTHENTICATION" && session?.user.role === "admin") {
+        return (
+          <button key={menu.title} type="button" onClick={handleAuthAction} aria-label={menu.title} className={className}>
+            <span className="transition-transform duration-150 group-active:scale-90">{menu.icon}</span>
+            <span className="max-w-full truncate text-[10px] font-semibold">{menuLabel}</span>
+          </button>
+        );
+      }
+
+      return (
       <Link
         key={menu.title}
-        href={menu.href}
+        href={menu.href ?? "/login"}
         aria-label={menu.title}
-        className="group flex min-h-[62px] flex-col items-center justify-center gap-1 rounded-xl px-1 text-[#315F86] transition duration-150 hover:bg-[#E7EFF8] active:scale-95 active:bg-[#D9E7F5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#315F86]"
+        className={className}
       >
         <span className="transition-transform duration-150 group-active:scale-90">
           {menu.icon}
         </span>
         <span className="max-w-full truncate text-[10px] font-semibold">
-          {menu.title === "Account Information"
-            ? "Account"
-            : menu.title === "Settings & Preference"
-              ? "Settings"
-              : menu.title === "Help Center"
-                ? "Help"
-                : "Login"}
+          {menuLabel}
         </span>
       </Link>
-    ))}
+      );
+    })}
   </div>
 </nav>
 

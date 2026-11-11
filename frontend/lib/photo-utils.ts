@@ -1,6 +1,8 @@
+import { photoForFingerprint } from "@/lib/photo-storage";
+
 export async function photoFingerprint(photo: string): Promise<string> {
   if (typeof crypto !== "undefined" && crypto.subtle) {
-    const response = await fetch(photo);
+    const response = await fetch(await photoForFingerprint(photo));
     const bytes = await response.arrayBuffer();
     const digest = await crypto.subtle.digest("SHA-256", bytes);
     return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");

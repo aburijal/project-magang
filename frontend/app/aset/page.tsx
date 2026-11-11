@@ -14,8 +14,10 @@ import {
 import {
   AssetDocument,
   loadDocuments,
+  migrateLegacyDocuments,
   saveDocuments,
 } from "@/lib/document-storage";
+import { deletePhotos, storePhotos } from "@/lib/photo-storage";
 import { getAssetStatus } from "@/lib/asset-utils";
 import { Asset } from "@/types/asset";
 import {
@@ -162,7 +164,7 @@ function AsetContent({
     setAcquisitionSource("Semua Asal Usul");
   }
 
-  function handleDelete(asset: Asset) {
+  async function handleDelete(asset: Asset) {
     if (!requireAdmin()) return;
 
     const confirmed = window.confirm(
@@ -174,7 +176,7 @@ function AsetContent({
     setDeleteError("");
 
     try {
-      deleteAssetWithDocuments(asset.id);
+      await deleteAssetWithDocuments(asset.id);
       setAssets(loadAssets());
     } catch (error) {
       setDeleteError(
@@ -253,108 +255,96 @@ function AsetContent({
       return;
     }
 
-    try {
-      const validAssets = importPreview.map(
-        (item) => item.asset as Asset,
-      );
+    
+try {
+  await migrateLegacyDocuments();
+  const validAssets = importPreview.map(
+    (item) => item.asset as Asset,
+  );
 
-      const currentDocuments = loadDocuments();
-      const importedDocuments: AssetDocument[] = [];
-      const existingPhotoHashes = new Map<number, Set<string>>();
+  const currentDocuments = loadDocuments();
+  const importedDocuments: AssetDocument[] = [];
+  const existingPhotoHashes = new Map<number, Set<string>>();
 
-      for (const document of currentDocuments) {
-        const hashes =
-          existingPhotoHashes.get(document.assetId) ?? new Set<string>();
+  for (const document of currentDocuments) {
+    const hashes =
+      existingPhotoHashes.get(document.assetId) ?? new Set<string>();
 
-        for (const photo of document.photos) {
-          hashes.add(await photoFingerprint(photo));
-        }
-
-        existingPhotoHashes.set(document.assetId, hashes);
-      }
-
-      for (const item of importPreview) {
-        if (!item.asset || !item.photos.length) continue;
-
-        const photos = await uniquePhotos(item.photos);
-        const hashes =
-          existingPhotoHashes.get(item.asset.id) ?? new Set<string>();
-        const newPhotos: string[] = [];
-
-        for (const photo of photos) {
-          const hash = await photoFingerprint(photo);
-
-          if (hashes.has(hash)) continue;
-
-          hashes.add(hash);
-          newPhotos.push(photo);
-        }
-
-        if (newPhotos.length) {
-          importedDocuments.push({
-            id: `import-${item.asset.id}-${Date.now()}-${importedDocuments.length}`,
-            assetId: item.asset.id,
-            title: `Dokumen foto - ${item.asset.nama_barang_aset}`,
-            type: "Foto Aset",
-            description: "Foto diimpor dari file Excel.",
-            photos: newPhotos,
-            createdAt: new Date().toISOString(),
-          });
-        }
-      }
-
-      // Simpan nilai sebelumnya agar bisa dipulihkan jika penyimpanan gagal.
-      const previousAssets = window.localStorage.getItem(
-        "lhokseumawe-assets",
-      );
-      const previousDocuments = window.localStorage.getItem(
-        "lhokseumawe-asset-documents",
-      );
-
-      try {
-        saveAssets([...currentAssets, ...validAssets]);
-        saveDocuments([...importedDocuments, ...currentDocuments]);
-      } catch (error) {
-        if (previousAssets === null) {
-          window.localStorage.removeItem("lhokseumawe-assets");
-        } else {
-          window.localStorage.setItem(
-            "lhokseumawe-assets",
-            previousAssets,
-          );
-        }
-
-        if (previousDocuments === null) {
-          window.localStorage.removeItem(
-            "lhokseumawe-asset-documents",
-          );
-        } else {
-          window.localStorage.setItem(
-            "lhokseumawe-asset-documents",
-            previousDocuments,
-          );
-        }
-
-        throw error;
-      }
-
-      setAssets(loadAssets());
-      setImportPreview(null);
-    } catch (error) {
-      setImportPreview((current) =>
-        current?.map((item, index) =>
-          index === 0
-            ? {
-              ...item,
-              error:
-                error instanceof Error
-                  ? error.message
-                  : "Data tidak dapat disimpan.",
-            }
-            : item,
-        ) ?? null,
-      );
+    for (const photo of document.photos) {
+      hashes.add(await photoFingerprint(photo));
     }
+
+    existingPhotoHashes.set(document.assetId, hashes);
+  }
+
+  for (const item of importPreview) {
+    if (!item.asset || !item.photos.length) continue;
+
+    const photos = await uniquePhotos(item.photos);
+    const hashes =
+      existingPhotoHashes.get(item.asset.id) ?? new Set<string>();
+    const newPhotos: string[] = [];
+
+    for (const photo of photos) {
+      const hash = await photoFingerprint(photo);
+
+      if (hashes.has(hash)) continue;
+
+      hashes.add(hash);
+      newPhotos.push(photo);
+    }
+
+    if (newPhotos.length) {
+      importedDocuments.push({
+        id: `import-${item.asset.id}-${Date.now()}-${importedDocuments.length}`,
+        assetId: item.asset.id,
+        title: `Dokumen foto - ${item.asset.nama_barang_aset}`,
+        type: "Foto Aset",
+        description: "Foto diimpor dari file Excel.",
+        photos: newPhotos,
+        createdAt: new Date().toISOString(),
+      });
+    }
+  }
+
+    const storedPhotoReferences: string[] = [];
+    for (const document of importedDocuments) {
+      const references = await storePhotos(document.photos);
+      storedPhotoReferences.push(...references);
+      document.photos = references;
+    }
+
+    const nextAssets = [...currentAssets, ...validAssets];
+    const nextDocuments = [...importedDocuments, ...currentDocuments];
+    try {
+      saveAssets(nextAssets);
+      saveDocuments(nextDocuments);
+    } catch (error) {
+      await deletePhotos(storedPhotoReferences);
+      throw error;
+    }
+
+  window.dispatchEvent(new Event("assets-updated"));
+  window.dispatchEvent(new Event("documents-updated"));
+
+  setAssets(loadAssets());
+  setImportPreview(null);
+} catch (error) {
+  setImportPreview((current) =>
+    current?.map((item, index) =>
+      index === 0
+        ? {
+            ...item,
+            error:
+              error instanceof Error
+                ? error.message
+                : "Data tidak dapat disimpan.",
+          }
+        : item,
+    ) ?? null,
+  );
+}
+
   }
 
   return (
@@ -755,12 +745,26 @@ function AsetContent({
                             )}
                           </div>
 
-                          {/* Kanan: Lihat Detail */}
+                          {/* Kanan: Lihat detail */}
                           <Link
                             href={`/aset/${asset.id}`}
-                            className="inline-flex items-center justify-center rounded-xl bg-[#244B70] px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#193B5A] hover:shadow-md active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#315F86] focus-visible:ring-offset-2"
+                            aria-label={`Lihat detail ${asset.nama_barang_aset}`}
+                            title="Lihat detail aset"
+                            className="group inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[#B8CDE0] bg-[#E7EFF8] text-[#315F86] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#8EACC7] hover:bg-[#D9E7F5] hover:shadow-md active:translate-y-0 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#315F86] focus-visible:ring-offset-2"
                           >
-                            Lihat Detail
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="h-5 w-5 transition-transform duration-200 group-hover:scale-110"
+                              aria-hidden="true"
+                            >
+                              <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                              <circle cx="12" cy="12" r="2.5" />
+                            </svg>
                           </Link>
                         </div>
                       </td>

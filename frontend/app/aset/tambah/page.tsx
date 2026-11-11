@@ -3,7 +3,7 @@
 import { ChangeEvent, FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
-import { addAsset, loadAssets } from "@/lib/asset-storage";
+import { addAsset, deleteAsset, loadAssets } from "@/lib/asset-storage";
 import { addDocument } from "@/lib/document-storage";
 import { findDuplicateAsset } from "@/lib/asset-import";
 import { uniquePhotos } from "@/lib/photo-utils";
@@ -119,15 +119,21 @@ export default function TambahAsetPage() {
     }
     const photos = await uniquePhotos([denahPhoto, ...additionalPhotos]);
     addAsset(nextAsset);
-    addDocument({
-      id: `document-${nextAssetId}`,
-      assetId: nextAssetId,
-      title: name,
-      type: "Denah & Foto Aset",
-      description: `Denah lokasi dan foto pendukung untuk ${name}.`,
-      photos,
-      createdAt: new Date().toISOString(),
-    });
+    try {
+      await addDocument({
+        id: `document-${nextAssetId}`,
+        assetId: nextAssetId,
+        title: name,
+        type: "Denah & Foto Aset",
+        description: `Denah lokasi dan foto pendukung untuk ${name}.`,
+        photos,
+        createdAt: new Date().toISOString(),
+      });
+    } catch (saveError) {
+      deleteAsset(nextAssetId);
+      setError(saveError instanceof Error ? saveError.message : "Foto aset tidak dapat disimpan.");
+      return;
+    }
 
     router.push("/aset");
   }

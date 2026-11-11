@@ -2,6 +2,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ChangeEvent,
   FormEvent,
@@ -15,9 +16,13 @@ import { loadAssets } from "@/lib/asset-storage";
 import {
   AssetDocument,
   loadDocuments,
+  migrateLegacyDocuments,
   saveDocuments,
+  saveDocumentWithPhotos,
+  createDocumentId,
 } from "@/lib/document-storage";
 import { photoFingerprint, uniquePhotos } from "@/lib/photo-utils";
+import { deletePhotos, resolvePhotos } from "@/lib/photo-storage";
 import { Asset } from "@/types/asset";
 import { districts } from "@/components/map/MapFilter";
 import { getAssetStatus } from "@/lib/asset-utils";
@@ -69,6 +74,7 @@ function readFiles(files: FileList | null): Promise<string[]> {
 }
 
 export default function DokumenPage() {
+  const router = useRouter();
   const [assets, setAssets] = useState<Asset[]>(dummyAssets);
   const [documents, setDocuments] = useState<AssetDocument[]>([]);
   const [search, setSearch] = useState("");
@@ -107,7 +113,7 @@ useEffect(() => {
     const session = loadAuthSession();
 
     if (!session) {
-      window.location.href = "/login";
+      router.push("/login");
       return false;
     }
 
@@ -123,9 +129,10 @@ useEffect(() => {
 
   // Memuat data aset dan dokumen dari localStorage.
   useEffect(() => {
-    const refresh = () => {
+    const refresh = async () => {
       const nextAssets = loadAssets();
       const assetIds = new Set(nextAssets.map((asset) => asset.id));
+      await migrateLegacyDocuments();
       const storedDocuments = loadDocuments();
 
       const nextDocuments = storedDocuments.filter((document) =>
@@ -137,10 +144,14 @@ useEffect(() => {
       }
 
       setAssets(nextAssets);
-      setDocuments(nextDocuments);
+      const resolvedDocuments = await Promise.all(nextDocuments.map(async (document) => ({
+        ...document,
+        photos: await resolvePhotos(document.photos),
+      })));
+      setDocuments(resolvedDocuments);
     };
 
-    refresh();
+    void refresh();
 
     window.addEventListener("assets-updated", refresh);
     window.addEventListener("documents-updated", refresh);
@@ -345,7 +356,7 @@ useEffect(() => {
     const currentDocuments = loadDocuments();
 
     const nextDocument: AssetDocument = {
-      id: editingId ?? `document-${Date.now()}`,
+      id: editingId ?? createDocumentId(),
       assetId: Number(form.assetId),
       title: form.title.trim(),
       type: form.type,
@@ -358,18 +369,16 @@ useEffect(() => {
         : new Date().toISOString(),
     };
 
-    const nextDocuments = editingId
-      ? currentDocuments.map((document) =>
-          document.id === editingId ? nextDocument : document,
-        )
-      : [nextDocument, ...currentDocuments];
-
-    saveDocuments(nextDocuments);
-    setDocuments(nextDocuments);
+    const storedDocument = await saveDocumentWithPhotos(nextDocument);
+    const resolvedDocument = { ...storedDocument, photos: await resolvePhotos(storedDocument.photos) };
+    const nextResolvedDocuments = editingId
+      ? documents.map((document) => document.id === editingId ? resolvedDocument : document)
+      : [resolvedDocument, ...documents];
+    setDocuments(nextResolvedDocuments);
     setModal(null);
   };
 
-  const handleDelete = (document: AssetDocument) => {
+  const handleDelete = async (document: AssetDocument) => {
     if (!requireAdmin()) return;
 
     if (
@@ -381,12 +390,16 @@ useEffect(() => {
     }
 
     const currentDocuments = loadDocuments();
+    const storedDocument = currentDocuments.find((item) => item.id === document.id);
 
     const nextDocuments = currentDocuments.filter(
       (item) => item.id !== document.id,
     );
 
     saveDocuments(nextDocuments);
+    if (storedDocument) {
+      await deletePhotos(storedDocument.photos);
+    }
     setDocuments(nextDocuments);
 
     if (selectedDocument?.id === document.id) {
