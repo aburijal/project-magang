@@ -9,18 +9,9 @@ class Certificate extends Model
 {
     protected $fillable = [
         'land_asset_id',
-        'certificate_date',
-        'certificate_number',
         'status',
         'description',
     ];
-
-    protected function casts(): array
-    {
-        return [
-            'certificate_date' => 'date',
-        ];
-    }
 
     public function landAsset(): BelongsTo
     {
