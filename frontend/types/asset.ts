@@ -17,6 +17,7 @@ export interface Asset {
   hak: string;
   tanggal_sertifikat: string;
   no_sertifikat: string;
+  status_sertifikat?: "Bersertifikat" | "Belum Bersertifikat" | "Keterangan Lainnya";
 
   // Penggunaan dan nilai
   penggunaan: string;

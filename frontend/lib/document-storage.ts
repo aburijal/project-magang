@@ -32,3 +32,10 @@ export function saveDocuments(documents: AssetDocument[]) {
 export function addDocument(document: AssetDocument) {
   saveDocuments([document, ...loadDocuments()]);
 }
+
+export function deleteDocumentsByAssetId(assetId: number): AssetDocument[] {
+  const documents = loadDocuments();
+  const remainingDocuments = documents.filter((document) => document.assetId !== assetId);
+  saveDocuments(remainingDocuments);
+  return documents.filter((document) => document.assetId === assetId);
+}

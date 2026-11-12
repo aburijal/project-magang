@@ -1,38 +1,326 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
-import { getAsset, updateAsset } from "@/lib/asset-storage";
+import { fetchAssetsFromApi } from "@/lib/asset-api";
+import { loadAuthSession } from "@/lib/auth-storage";
+import { Asset } from "@/types/asset";
 
-const inputClass = "mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api";
+
+const inputClass =
+  "mt-2 h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
 
 export default function EditAsetPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
-  const asset = useMemo(() => getAsset(Number(params.id)), [params.id]);
+  const assetId = Number(params.id);
+
+  const [asset, setAsset] = useState<Asset | null>(null);
   const [error, setError] = useState("");
+  const [authorized, setAuthorized] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
-  if (!asset) return <AppLayout><div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-600">Aset tidak ditemukan.</div></AppLayout>;
-  const currentAsset = asset;
+  useEffect(() => {
+    let active = true;
 
-  function save(event: FormEvent<HTMLFormElement>) {
+    async function initialize() {
+      const session = loadAuthSession();
+
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
+
+      if (session.user.role !== "admin") {
+        router.replace(`/aset/${params.id}`);
+        return;
+      }
+
+      if (active) setAuthorized(true);
+
+      try {
+        const assets = await fetchAssetsFromApi();
+        const found = assets.find((item) => item.id === assetId);
+
+        if (!active) return;
+
+        if (!found) {
+          setError("Aset tidak ditemukan di database.");
+        }
+
+        setAsset(found ?? null);
+      } catch (loadError) {
+        if (!active) return;
+
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "Gagal mengambil data aset dari server.",
+        );
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    }
+
+    initialize();
+
+    return () => {
+      active = false;
+    };
+  }, [assetId, params.id, router]);
+
+  async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError("");
+
+    const session = loadAuthSession();
+
+    if (!session) {
+      router.replace("/login");
+      return;
+    }
+
+    if (session.user.role !== "admin") {
+      window.alert("Akses ditolak. Hanya admin yang boleh mengubah aset.");
+      router.replace(`/aset/${params.id}`);
+      return;
+    }
+
+    if (!asset) {
+      setError("Data aset tidak ditemukan.");
+      return;
+    }
+
     const form = new FormData(event.currentTarget);
-    const name = String(form.get("nama") ?? "").trim();
-    const address = String(form.get("alamat") ?? "").trim();
-    if (!name || !address) { setError("Nama aset dan alamat wajib diisi."); return; }
-    updateAsset(currentAsset.id, {
-      nama_barang_aset: name,
-      alamat: address,
-      dinas_opd: String(form.get("opd") ?? "").trim() || currentAsset.dinas_opd,
-      penggunaan: String(form.get("penggunaan") ?? "").trim() || "-",
-      keterangan: String(form.get("keterangan") ?? "").trim() || "-",
-      luas_m2: Number(form.get("luas") ?? 0) || null,
-      no_sertifikat: String(form.get("sertifikat") ?? "").trim() || "-",
-    });
-    router.push(`/aset/${currentAsset.id}`);
+    const areaText = String(form.get("luas") ?? "").trim();
+    const usage = String(form.get("penggunaan") ?? "").trim();
+    const description = String(form.get("keterangan") ?? "").trim();
+
+    const area = areaText === "" ? null : Number(areaText);
+
+    if (area !== null && (!Number.isFinite(area) || area < 0)) {
+      setError("Luas harus berupa angka nol atau lebih.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const response = await fetch(
+        `${API_URL}/land-assets/${asset.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.token}`,
+          },
+          body: JSON.stringify({
+            area,
+            usage: usage || null,
+            description: description || null,
+          }),
+        },
+      );
+
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error("Sesi login tidak valid. Silakan login kembali.");
+        }
+
+        if (response.status === 403) {
+          throw new Error("Akses ditolak oleh server. Hanya admin yang boleh mengubah aset.");
+        }
+
+        const validationErrors = result?.errors
+          ? Object.values(result.errors).flat().join(" ")
+          : "";
+
+        throw new Error(
+          validationErrors ||
+            result?.message ||
+            "Perubahan aset gagal disimpan.",
+        );
+      }
+
+      router.push(`/aset/${asset.id}`);
+      router.refresh();
+    } catch (saveError) {
+      setError(
+        saveError instanceof TypeError
+          ? "Server Laravel tidak dapat dihubungi. Pastikan backend berjalan."
+          : saveError instanceof Error
+            ? saveError.message
+            : "Terjadi kesalahan saat menyimpan perubahan.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
   }
 
-  return <AppLayout><div className="mx-auto max-w-3xl space-y-6"><div><button type="button" onClick={() => router.back()} className="text-sm font-medium text-blue-600">← Kembali</button><h1 className="mt-3 text-2xl font-bold text-slate-900">Edit Aset Tanah</h1></div><form onSubmit={save} className="space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"><label className="block text-sm font-medium text-slate-700">Nama aset *<input name="nama" defaultValue={currentAsset.nama_barang_aset} className={inputClass} required /></label><label className="block text-sm font-medium text-slate-700">Alamat *<input name="alamat" defaultValue={currentAsset.alamat} className={inputClass} required /></label><div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">Dinas / OPD<input name="opd" defaultValue={currentAsset.dinas_opd} className={inputClass} /></label><label className="text-sm font-medium text-slate-700">Luas (m²)<input name="luas" type="number" min="0" step="0.01" defaultValue={currentAsset.luas_m2 ?? ""} className={inputClass} /></label><label className="text-sm font-medium text-slate-700">Nomor sertifikat<input name="sertifikat" defaultValue={currentAsset.no_sertifikat === "-" ? "" : currentAsset.no_sertifikat} className={inputClass} /></label><label className="text-sm font-medium text-slate-700">Penggunaan<input name="penggunaan" defaultValue={currentAsset.penggunaan} className={inputClass} /></label></div><label className="block text-sm font-medium text-slate-700">Keterangan<textarea name="keterangan" defaultValue={currentAsset.keterangan} rows={3} className="mt-2 w-full rounded-lg border border-slate-300 p-3 text-sm outline-none focus:border-blue-500" /></label>{error && <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>}<div className="flex justify-end gap-3 border-t border-slate-100 pt-5"><button type="button" onClick={() => router.back()} className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm">Batal</button><button type="submit" className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white">Simpan Perubahan</button></div></form></div></AppLayout>;
+  if (!authorized || isLoading) {
+    return (
+      <AppLayout>
+        <div className="p-8 text-center text-slate-500">
+          Memeriksa akses dan memuat data aset...
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!asset) {
+    return (
+      <AppLayout>
+        <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-600">
+          {error || "Aset tidak ditemukan."}
+          <div>
+            <button
+              type="button"
+              onClick={() => router.push("/aset")}
+              className="ui-button ui-button-outline mt-4 font-medium"
+            >
+              Kembali ke Data Aset
+            </button>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  return (
+    <AppLayout>
+      <div className="mx-auto max-w-3xl space-y-6">
+        <div>
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="ui-button ui-button-outline text-sm font-medium text-blue-600"
+          >
+            ← Kembali
+          </button>
+
+          <h1 className="mt-3 text-2xl font-bold text-slate-900">
+            Edit Aset Tanah
+          </h1>
+
+          <p className="mt-1 text-sm text-slate-500">
+            Data dibaca dari database Laravel.
+          </p>
+        </div>
+
+        <form
+          onSubmit={save}
+          className="space-y-5 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+        >
+          <label className="block text-sm font-medium text-slate-700">
+            Nama aset
+            <input
+              value={asset.nama_barang_aset}
+              className={`${inputClass} bg-slate-50`}
+              readOnly
+            />
+            <span className="mt-1 block text-xs font-normal text-slate-500">
+              Nama aset belum memiliki kolom tersendiri di database.
+            </span>
+          </label>
+
+          <label className="block text-sm font-medium text-slate-700">
+            Alamat
+            <input
+              value={asset.alamat}
+              className={`${inputClass} bg-slate-50`}
+              readOnly
+            />
+          </label>
+
+          <label className="block text-sm font-medium text-slate-700">
+            Dinas / OPD
+            <input
+              value={asset.dinas_opd}
+              className={`${inputClass} bg-slate-50`}
+              readOnly
+            />
+          </label>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-medium text-slate-700">
+              Nomor register
+              <input
+                value={asset.no_register}
+                className={`${inputClass} bg-slate-50`}
+                readOnly
+              />
+            </label>
+
+            <label className="text-sm font-medium text-slate-700">
+              Luas (m²)
+              <input
+                name="luas"
+                type="number"
+                min="0"
+                step="0.01"
+                defaultValue={asset.luas_m2 ?? ""}
+                className={inputClass}
+              />
+            </label>
+
+            <label className="text-sm font-medium text-slate-700 sm:col-span-2">
+              Penggunaan
+              <input
+                name="penggunaan"
+                defaultValue={asset.penggunaan === "-" ? "" : asset.penggunaan}
+                className={inputClass}
+              />
+            </label>
+          </div>
+
+          <label className="block text-sm font-medium text-slate-700">
+            Keterangan
+            <textarea
+              name="keterangan"
+              defaultValue={asset.keterangan === "-" ? "" : asset.keterangan}
+              rows={3}
+              className="mt-2 w-full rounded-lg border border-slate-300 p-3 text-sm outline-none focus:border-blue-500"
+            />
+          </label>
+
+          <p className="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            Nomor sertifikat dan status sertifikat dikelola melalui data
+            sertifikat terpisah. Form ini belum mengubah data sertifikat.
+          </p>
+
+          {error && (
+            <p className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </p>
+          )}
+
+          <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="ui-button-secondary"
+              disabled={isSaving}
+            >
+              Batal
+            </button>
+
+            <button
+              type="submit"
+              className="ui-button-primary font-medium"
+              disabled={isSaving}
+            >
+              {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </AppLayout>
+  );
 }

@@ -25,14 +25,27 @@ function assetValue(value: string | number | null): string {
   return value === null || value === "" ? "-" : escapeHtml(value);
 }
 
-function createAssetPopup(asset: Asset, status: string): string {
-  const area = asset.luas_m2 === null
-    ? "-"
-    : `${asset.luas_m2.toLocaleString("id-ID")} m²`;
-  const coordinates = asset.koordinat_x === null || asset.koordinat_y === null
-    ? "-"
-    : `${asset.koordinat_x.toFixed(6)}, ${asset.koordinat_y.toFixed(6)}`;
+function createAssetMarkerIcon(
+  L: typeof import("leaflet"),
+  color: string,
+) {
+  return L.divIcon({
+    className: "asset-map-marker",
+    html: `
+      <span class="asset-map-marker__pin" style="--marker-color: ${color}" aria-hidden="true">
+        <svg viewBox="0 0 24 30" role="presentation">
+          <path d="M12 1.5C6.4 1.5 2 5.9 2 11.5c0 7.4 10 16.4 10 16.4s10-9 10-16.4c0-5.6-4.4-10-10-10Z" />
+          <circle cx="12" cy="11.5" r="4.25" />
+        </svg>
+      </span>
+    `,
+    iconSize: [24, 30],
+    iconAnchor: [12, 30],
+    popupAnchor: [0, -28],
+  });
+}
 
+function createAssetPopup(asset: Asset, status: string): string {
   return `
     <div class="asset-popup">
       <div class="asset-popup__heading">
@@ -42,12 +55,8 @@ function createAssetPopup(asset: Asset, status: string): string {
         </div>
       </div>
       <dl class="asset-popup__details">
-        <div><dt>Lokasi</dt><dd>${assetValue(asset.lokasi_aset)}</dd></div>
-        <div><dt>Jenis aset</dt><dd>${assetValue(asset.nama_barang_aset)}</dd></div>
-        <div><dt>Luas</dt><dd>${assetValue(area)}</dd></div>
+        <div><dt>Alamat</dt><dd>${assetValue(asset.alamat)}</dd></div>
         <div><dt>Status</dt><dd>${assetValue(status)}</dd></div>
-        <div><dt>Status hak</dt><dd>${assetValue(asset.hak)}</dd></div>
-        <div><dt>Koordinat</dt><dd>${assetValue(coordinates)}</dd></div>
       </dl>
       <a class="asset-popup__link" href="/aset/${asset.id}">Lihat detail aset <span aria-hidden="true">→</span></a>
     </div>
@@ -73,6 +82,7 @@ export default function AssetMap({
     let clearPress: () => void = () => undefined;
     let handlePointerDown: (event: PointerEvent) => void = () => undefined;
     let handlePointerMove: (event: PointerEvent) => void = () => undefined;
+    let layerControl: import("leaflet").Control | null = null;
     let cancelled = false;
 
     async function loadMap() {
@@ -122,17 +132,18 @@ export default function AssetMap({
         if (asset.koordinat_x === null || asset.koordinat_y === null) continue;
 
         const status = getAssetStatus(asset);
-        const marker = L.circleMarker([asset.koordinat_x, asset.koordinat_y], {
-          radius: 8,
-          color: status === "Bersertifikat" ? "#059669" : "#ea580c",
-          fillColor: status === "Bersertifikat" ? "#10b981" : "#f97316",
-          fillOpacity: 0.85,
-          weight: 2,
+        const markerColor = status === "Bersertifikat"
+          ? "#10b981"
+          : status === "Belum Bersertifikat"
+            ? "#f97316"
+            : "#3b82f6";
+        const marker = L.marker([asset.koordinat_x, asset.koordinat_y], {
+          icon: createAssetMarkerIcon(L, markerColor),
         })
           .bindPopup(createAssetPopup(asset, status), {
             className: "asset-map-popup",
-            maxWidth: 360,
-            minWidth: 280,
+            maxWidth: 280,
+            minWidth: 210,
           })
           .addTo(map);
 
@@ -144,13 +155,116 @@ export default function AssetMap({
           }
       }
 
-      // Kontrol layer
-      L.control
-        .layers({
-          "Peta Jalan": osm,
-          "Peta Satelit": satellite,
-        }, undefined, { collapsed: false })
-        .addTo(map);
+      let activeBaseLayer: import("leaflet").TileLayer = osm;
+      layerControl = new (L.Control.extend({
+        onAdd() {
+          const container = L.DomUtil.create("div", "leaflet-control asset-layer-control");
+          const toggle = L.DomUtil.create("button", "asset-layer-control__toggle", container);
+          toggle.type = "button";
+          toggle.setAttribute("aria-label", "Pilih layer peta");
+          toggle.setAttribute("title", "Pilih layer peta");
+          toggle.setAttribute("aria-expanded", "false");
+          toggle.innerHTML = `
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m12 3 8 4.5-8 4.5-8-4.5L12 3Z" />
+              <path d="m4 12 8 4.5 8-4.5M4 16.5l8 4.5 8-4.5" />
+            </svg>
+          `;
+
+          const menu = L.DomUtil.create("div", "asset-layer-control__menu", container);
+          menu.hidden = true;
+          const layers = [
+            {
+              label: "Peta Jalan",
+              layer: osm,
+              icon: `
+                <svg viewBox="0 0 48 48" aria-hidden="true">
+                  <rect width="48" height="48" rx="8" fill="#e8f0e7" />
+                  <path d="M-4 35 52 8M-5 47 52 20" stroke="#c4d6bd" stroke-width="8" />
+                  <path d="M-4 35 52 8M-5 47 52 20" stroke="#ffffff" stroke-dasharray="5 4" stroke-width="2" />
+                  <path d="M6 8h14M27 40h15M35 4v12" stroke="#91a988" stroke-width="2" />
+                </svg>
+              `,
+            },
+            {
+              label: "Peta Satelit",
+              layer: satellite,
+              icon: `
+                <svg viewBox="0 0 48 48" aria-hidden="true">
+                  <rect width="48" height="48" rx="8" fill="#d8e7e8" />
+                  <path d="M0 33c8-5 14-5 22 0s14 5 26-2v17H0Z" fill="#7aa98d" />
+                  <path d="M0 16c9 4 15 3 23-2s15-5 25 1v12c-10 4-17 4-25-1S9 22 0 27Z" fill="#a8c3b1" />
+                  <path d="m30 7 5 5m-9 0 5-5m-8 8 12 0" stroke="#5a7f84" stroke-width="2" />
+                  <circle cx="31" cy="12" r="3" fill="#ffffff" stroke="#5a7f84" stroke-width="2" />
+                </svg>
+              `,
+            },
+          ];
+
+          const options: HTMLButtonElement[] = [];
+          const updateActiveLayer = () => {
+            options.forEach((option, index) => {
+              const isActive = layers[index].layer === activeBaseLayer;
+              option.classList.toggle("is-active", isActive);
+              option.setAttribute("aria-pressed", String(isActive));
+            });
+          };
+
+          const selectLayer = (layer: import("leaflet").TileLayer) => {
+            if (activeBaseLayer !== layer) {
+              map?.removeLayer(activeBaseLayer);
+              layer.addTo(map!);
+              activeBaseLayer = layer;
+              updateActiveLayer();
+            }
+            menu.hidden = true;
+            toggle.setAttribute("aria-expanded", "false");
+          };
+
+          layers.forEach(({ label, layer, icon }) => {
+            const option = L.DomUtil.create("button", "asset-layer-control__option", menu);
+            option.type = "button";
+            option.innerHTML = `<span class="asset-layer-control__thumbnail">${icon}</span><span class="asset-layer-control__label">${label}</span>`;
+            option.setAttribute("aria-label", `Gunakan ${label}`);
+            option.setAttribute("aria-pressed", "false");
+            option.addEventListener("click", () => selectLayer(layer));
+            options.push(option);
+          });
+          updateActiveLayer();
+
+          toggle.addEventListener("click", () => {
+            menu.hidden = !menu.hidden;
+            toggle.setAttribute("aria-expanded", String(!menu.hidden));
+          });
+          const closeMenu = (event: MouseEvent) => {
+            if (!container.contains(event.target as Node)) {
+              menu.hidden = true;
+              toggle.setAttribute("aria-expanded", "false");
+            }
+          };
+          const closeMenuOnEscape = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+              menu.hidden = true;
+              toggle.setAttribute("aria-expanded", "false");
+              toggle.focus();
+            }
+          };
+          document.addEventListener("click", closeMenu);
+          document.addEventListener("keydown", closeMenuOnEscape);
+          (container as typeof container & { _cleanup?: () => void })._cleanup = () => {
+            document.removeEventListener("click", closeMenu);
+            document.removeEventListener("keydown", closeMenuOnEscape);
+          };
+          L.DomEvent.disableClickPropagation(container);
+          L.DomEvent.on(container, "wheel", L.DomEvent.stopPropagation);
+          return container;
+        },
+        onRemove(mapInstance: import("leaflet").Map) {
+          const container = mapInstance.getContainer().querySelector(".asset-layer-control") as (HTMLElement & { _cleanup?: () => void }) | null;
+          container?._cleanup?.();
+        },
+      }))({ position: "topright" });
+      map.addControl(layerControl);
 
       mapContainer = map.getContainer();
       let pressTimer: ReturnType<typeof setTimeout> | null = null;
@@ -258,6 +372,7 @@ export default function AssetMap({
       cancelled = true;
 
       if (map) {
+        if (layerControl) map.removeControl(layerControl);
         map.remove();
         map = null;
       }
@@ -345,10 +460,15 @@ export default function AssetMap({
           type="button"
           onClick={showUserLocation}
           disabled={locating}
-          className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-md transition hover:bg-blue-50 hover:text-blue-700 disabled:cursor-wait disabled:opacity-70"
+          aria-label={locating ? "Mencari lokasi" : "Tampilkan lokasi saya"}
+          title={locating ? "Mencari lokasi" : "Tampilkan lokasi saya"}
+          className="asset-location-control"
         >
-          <span className="h-3 w-3 rounded-full border-2 border-white bg-blue-600 shadow-[0_0_0_2px_#2563eb]" />
-          {locating ? "Mencari lokasi..." : "Lokasi saya"}
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="7" />
+            <circle cx="12" cy="12" r="2.5" />
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+          </svg>
         </button>
         {locationError && (
           <p className="max-w-64 rounded-lg border border-red-100 bg-white px-3 py-2 text-right text-xs text-red-600 shadow-md">

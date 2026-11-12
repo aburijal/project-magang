@@ -1,10 +1,18 @@
 import { Asset } from "@/types/asset";
 
-export type AssetStatus = "Bersertifikat" | "Belum Bersertifikat";
+export type AssetStatus = "Bersertifikat" | "Belum Bersertifikat" | "Keterangan Lainnya";
 
 export function getAssetStatus(asset: Asset): AssetStatus {
-  return asset.no_sertifikat !== "-" && asset.no_sertifikat !== ""
-    ? "Bersertifikat"
+  const explicitStatus = asset.status_sertifikat as string | undefined;
+  if (explicitStatus === "Bersertifikat" || explicitStatus === "Belum Bersertifikat") {
+    return explicitStatus;
+  }
+  if (explicitStatus === "Keterangan Lainnya" || explicitStatus === "Dalam Proses") {
+    return "Keterangan Lainnya";
+  }
+  if (asset.no_sertifikat !== "-" && asset.no_sertifikat !== "") return "Bersertifikat";
+  return asset.keterangan.trim() && asset.keterangan.trim() !== "-"
+    ? "Keterangan Lainnya"
     : "Belum Bersertifikat";
 }
 
@@ -21,12 +29,14 @@ export function formatCurrency(value: number | null): string {
 export function getAssetSummary(assets: Asset[]) {
   const totalArea = assets.reduce((total, asset) => total + (asset.luas_m2 ?? 0), 0);
   const certified = assets.filter((asset) => getAssetStatus(asset) === "Bersertifikat").length;
+  const other = assets.filter((asset) => getAssetStatus(asset) === "Keterangan Lainnya").length;
 
   return {
     total: assets.length,
     totalArea,
     certified,
-    uncertified: assets.length - certified,
+    uncertified: assets.filter((asset) => getAssetStatus(asset) === "Belum Bersertifikat").length,
+    other,
   };
 }
 

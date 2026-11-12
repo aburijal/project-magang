@@ -484,6 +484,8 @@ class LandAssetController extends Controller
     {
         $photoPaths = $land_asset->photos()
             ->pluck('file_path')
+            ->filter()
+            ->values()
             ->all();
 
         DB::transaction(function () use ($land_asset) {
@@ -491,7 +493,16 @@ class LandAssetController extends Controller
         });
 
         foreach ($photoPaths as $path) {
-            Storage::disk('public')->delete($path);
+            $deleted = Storage::disk('public')->delete($path);
+
+            if (
+                !$deleted &&
+                Storage::disk('public')->exists($path)
+            ) {
+                throw new \RuntimeException(
+                    "File foto {$path} tidak dapat dihapus dari penyimpanan."
+                );
+            }
         }
 
         return response()->json([

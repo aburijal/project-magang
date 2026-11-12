@@ -15,7 +15,7 @@ class AssetPhotoController extends Controller
         $photos = $land_asset->photos()
             ->latest()
             ->get()
-            ->map(fn ($photo) => $this->formatPhoto($photo));
+            ->map(fn($photo) => $this->formatPhoto($photo));
 
         return response()->json($photos);
     }
@@ -29,6 +29,10 @@ class AssetPhotoController extends Controller
                 'mimes:jpg,jpeg,png,webp',
                 'max:5120',
             ],
+            'photo_type' => [
+                'required',
+                'in:denah,foto_tambahan',
+            ],
             'description' => ['nullable', 'string'],
         ]);
 
@@ -38,6 +42,7 @@ class AssetPhotoController extends Controller
         $photo = $land_asset->photos()->create([
             'file_path' => $path,
             'file_name' => $file->getClientOriginalName(),
+            'photo_type' => $validated['photo_type'],
             'description' => $validated['description'] ?? null,
         ]);
 
@@ -106,6 +111,7 @@ class AssetPhotoController extends Controller
             'land_asset_id' => $photo->land_asset_id,
             'file_path' => $photo->file_path,
             'file_name' => $photo->file_name,
+            'photo_type' => $photo->photo_type,
             'photo_url' => Storage::disk('public')->url($photo->file_path),
             'description' => $photo->description,
             'created_at' => $photo->created_at,

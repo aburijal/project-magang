@@ -62,15 +62,15 @@ export default function MapFilter({
         <option value="Belum Bersertifikat">
           Belum Bersertifikat
         </option>
-        <option value="Dalam Proses">
-          Dalam Proses
+        <option value="Keterangan Lainnya">
+          Keterangan Lainnya
         </option>
       </select>
 
       <button
         type="button"
         onClick={onReset}
-        className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        className="ui-button-secondary font-medium"
       >
         Reset
       </button>
