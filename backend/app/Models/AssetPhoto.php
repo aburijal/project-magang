@@ -11,6 +11,7 @@ class AssetPhoto extends Model
         'land_asset_id',
         'file_path',
         'file_name',
+        'photo_type',
         'description',
     ];
 

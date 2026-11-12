@@ -9,12 +9,19 @@ class AcquisitionSourceSeeder extends Seeder
 {
     public function run(): void
     {
-        AcquisitionSource::firstOrCreate(
-            ['kode' => 'BELUM-DITENTUKAN'],
-            [
-                'nama' => 'Belum ditentukan',
-                'keterangan' => 'Nilai sementara untuk pengujian',
-            ]
-        );
+        $sources = [
+            ['kode' => 'BELUM-DITENTUKAN', 'nama' => 'Belum ditentukan'],
+            ['kode' => 'PEMBELIAN', 'nama' => 'Pembelian'],
+            ['kode' => 'HIBAH', 'nama' => 'Hibah'],
+            ['kode' => 'PENYERAHAN', 'nama' => 'Penyerahan'],
+            ['kode' => 'LAINNYA', 'nama' => 'Lainnya'],
+        ];
+
+        foreach ($sources as $source) {
+            \App\Models\AcquisitionSource::updateOrCreate(
+                ['kode' => $source['kode']],
+                ['nama' => $source['nama']]
+            );
+        }
     }
 }

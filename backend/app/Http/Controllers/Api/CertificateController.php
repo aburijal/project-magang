@@ -6,9 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Models\Certificate;
 use App\Models\LandAsset;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class CertificateController extends Controller
 {
+    private const STATUSES = [
+        'bersertifikat',
+        'tidak_bersertifikat',
+        'keterangan_lainnya',
+    ];
+
     public function index(LandAsset $land_asset)
     {
         return response()->json(
@@ -19,20 +26,25 @@ class CertificateController extends Controller
     public function store(Request $request, LandAsset $land_asset)
     {
         $validated = $request->validate([
-            'certificate_date' => ['nullable', 'date'],
-            'certificate_number' => ['nullable', 'string', 'max:100'],
-            'status' => [
-                'required',
-                'string',
-                'in:bersertifikat,belum_bersertifikat,belum_diketahui',
-            ],
+            'status' => ['required', 'string', Rule::in(self::STATUSES)],
             'description' => ['nullable', 'string'],
         ]);
+
+        $certificate = $land_asset->certificates()->first();
+
+        if ($certificate) {
+            $certificate->update($validated);
+
+            return response()->json([
+                'message' => 'Status sertifikat berhasil diperbarui.',
+                'data' => $certificate->fresh(),
+            ]);
+        }
 
         $certificate = $land_asset->certificates()->create($validated);
 
         return response()->json([
-            'message' => 'Sertifikat berhasil ditambahkan.',
+            'message' => 'Status sertifikat berhasil ditambahkan.',
             'data' => $certificate,
         ], 201);
     }
@@ -54,18 +66,11 @@ class CertificateController extends Controller
         $this->ensureCertificateBelongsToAsset($land_asset, $certificate);
 
         $validated = $request->validate([
-            'certificate_date' => ['sometimes', 'nullable', 'date'],
-            'certificate_number' => [
-                'sometimes',
-                'nullable',
-                'string',
-                'max:100',
-            ],
             'status' => [
                 'sometimes',
                 'required',
                 'string',
-                'in:bersertifikat,belum_bersertifikat,belum_diketahui',
+                Rule::in(self::STATUSES),
             ],
             'description' => ['sometimes', 'nullable', 'string'],
         ]);
@@ -73,7 +78,7 @@ class CertificateController extends Controller
         $certificate->update($validated);
 
         return response()->json([
-            'message' => 'Sertifikat berhasil diperbarui.',
+            'message' => 'Status sertifikat berhasil diperbarui.',
             'data' => $certificate->fresh(),
         ]);
     }
@@ -87,7 +92,7 @@ class CertificateController extends Controller
         $certificate->delete();
 
         return response()->json([
-            'message' => 'Sertifikat berhasil dihapus.',
+            'message' => 'Status sertifikat berhasil dihapus.',
         ]);
     }
 
@@ -98,7 +103,7 @@ class CertificateController extends Controller
         abort_unless(
             (int) $certificate->land_asset_id === (int) $land_asset->id,
             404,
-            'Sertifikat tidak ditemukan pada aset tanah tersebut.'
+            'Status sertifikat tidak ditemukan pada aset tanah tersebut.'
         );
     }
 }

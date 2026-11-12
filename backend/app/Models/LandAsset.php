@@ -14,9 +14,11 @@ class LandAsset extends Model
         'asset_category_id',
         'land_right_id',
         'acquisition_source_id',
+        'name',
         'register_number',
         'area',
         'acquisition_year',
+        'acquisition_date',
         'usage',
         'price',
         'description',
@@ -29,6 +31,7 @@ class LandAsset extends Model
             'area' => 'decimal:2',
             'price' => 'decimal:2',
             'acquisition_year' => 'integer',
+            'acquisition_date' => 'date:Y-m-d',
         ];
     }
 
